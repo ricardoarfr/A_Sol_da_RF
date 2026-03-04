@@ -3,6 +3,8 @@ services:
     name: a-sol-da-rf
     runtime: python
     plan: free
+    branch: main
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:

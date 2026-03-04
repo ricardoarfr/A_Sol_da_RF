@@ -88,6 +88,7 @@ Não é um chatbot de FAQ. É um agente que consulta sistemas reais e toma açõ
 | 2026-03 | Python + FastAPI | Ecossistema forte para APIs, async nativo, pydantic |
 | 2026-03 | Z-API como gateway WhatsApp | Já contratado e número conectado |
 | 2026-03 | Render como hospedagem | Plano free suficiente para início, fácil CI/CD via git |
+| 2026-03 | Auto-deploy via `main` | `render.yaml` com `autoDeploy: true` — push em `main` = deploy automático |
 | 2026-03 | Produttivo como sistema primário | É o sistema core de gestão de campo da RF |
 
 ---

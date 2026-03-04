@@ -149,6 +149,18 @@ ngrok http 8000
 4. Copiar a URL pública gerada (ex: `https://a-sol-da-rf.onrender.com`)
 5. Configurar essa URL como webhook na Z-API
 
+### Auto-deploy
+
+O `render.yaml` configura `autoDeploy: true` apontando para o branch `main`.
+Todo push para `main` dispara automaticamente um novo deploy no Render.
+
+**Fluxo de trabalho:**
+```
+feature branch → PR → merge em main → Render detecta → build + deploy automático
+```
+
+> Branches de feature (`claude/*`, `fix/*`, etc.) **não** trigam deploy — apenas `main`.
+
 ---
 
 ## Variáveis de Ambiente

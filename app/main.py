@@ -1,7 +1,9 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.routes.webhook import router as webhook_router
+from app.routes.admin import router as admin_router
 from app.config import settings
 
 logging.basicConfig(
@@ -23,6 +25,9 @@ app.add_middleware(
 )
 
 app.include_router(webhook_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+
+app.mount("/admin", StaticFiles(directory="frontend", html=True), name="admin")
 
 
 @app.get("/")

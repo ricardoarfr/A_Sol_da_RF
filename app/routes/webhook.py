@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Request, HTTPException
 from app.models.webhook import ZAPIWebhookPayload
 from app.services.zapi import send_text_message
-from app.services import produttivo, phone_auth
+from app.services import produttivo, phone_auth, ai
 
 logger = logging.getLogger(__name__)
 
@@ -44,52 +44,66 @@ async def zapi_webhook(request: Request):
     return {"status": "ok"}
 
 
-# --- Intent detection helpers ---
+# --- Intent detection: AI first, keyword fallback ---
 
-def _detect_intent(text: str) -> str:
+async def _detect_intent(text: str) -> tuple[str, dict]:
+    """Returns (intent, params). Uses AI if available, falls back to keywords."""
+    result = await ai.classify_message(text)
+
+    if result.get("action"):
+        logger.info(f"AI classified intent: {result}")
+        return result["action"], result.get("params", {})
+
+    # Keyword fallback
+    logger.info("No active AI model, using keyword detection")
     t = text.strip().lower()
     if any(w in t for w in ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"]):
-        return "greeting"
+        return "greeting", {}
     if any(w in t for w in ["atividade", "atividades", "os", "agenda", "tarefa", "tarefas", "serviço", "servicos"]):
-        return "activities"
+        return "activities", _keyword_activity_params(t)
     if any(w in t for w in ["técnico", "tecnicos", "tecnico", "equipe", "time"]):
-        return "technicians"
-    return "unknown"
+        return "technicians", {}
+    return "unknown", {}
 
 
-def _build_activity_filters(text: str) -> dict:
-    """Extract date and status filters from free text."""
-    t = text.strip().lower()
-    filters: dict = {}
-
+def _keyword_activity_params(t: str) -> dict:
     today = date.today()
+    params: dict = {}
     if "amanhã" in t or "amanha" in t:
-        filters["date"] = str(today + timedelta(days=1))
+        params["date"] = "tomorrow"
     elif "ontem" in t:
-        filters["date"] = str(today - timedelta(days=1))
+        params["date"] = "yesterday"
     else:
-        # Default: today
-        filters["date"] = str(today)
-
+        params["date"] = "today"
     if "pendente" in t or "aberta" in t or "abertas" in t:
-        filters["status"] = "pending"
+        params["status"] = "pending"
     elif "concluída" in t or "concluida" in t or "feita" in t or "feitas" in t:
-        filters["status"] = "completed"
+        params["status"] = "completed"
     elif "atrasada" in t or "atrasadas" in t:
-        filters["status"] = "overdue"
+        params["status"] = "overdue"
+    return params
 
-    return filters
+
+def _resolve_date(date_param: str) -> str:
+    today = date.today()
+    if date_param == "tomorrow":
+        return str(today + timedelta(days=1))
+    if date_param == "yesterday":
+        return str(today - timedelta(days=1))
+    if date_param == "today":
+        return str(today)
+    # Allow ISO date strings passed directly
+    return date_param or str(today)
 
 
 # --- Response formatters ---
 
-def _format_activities(activities: list, filters: dict) -> str:
-    date_label = filters.get("date", str(date.today()))
+def _format_activities(activities: list, date_str: str) -> str:
     if not activities:
-        return f"Nenhuma atividade encontrada para *{date_label}*."
+        return f"Nenhuma atividade encontrada para *{date_str}*."
 
-    lines = [f"*Atividades — {date_label}* ({len(activities)} encontradas)\n"]
-    for act in activities[:10]:  # limit to avoid huge messages
+    lines = [f"*Atividades — {date_str}* ({len(activities)} encontradas)\n"]
+    for act in activities[:10]:
         name = act.get("title") or act.get("name") or act.get("description") or "Sem título"
         status = act.get("status") or ""
         technician = act.get("user", {}).get("name") or act.get("technician") or ""
@@ -129,7 +143,7 @@ def _format_technicians(technicians: list) -> str:
 # --- Main handler ---
 
 async def handle_message(phone: str, text: str) -> str:
-    intent = _detect_intent(text)
+    intent, params = await _detect_intent(text)
 
     if intent == "greeting":
         return (
@@ -141,10 +155,13 @@ async def handle_message(phone: str, text: str) -> str:
 
     if intent == "activities":
         try:
-            filters = _build_activity_filters(text)
+            date_str = _resolve_date(params.get("date", "today"))
+            filters: dict = {"date": date_str}
+            if params.get("status"):
+                filters["status"] = params["status"]
             logger.info(f"Fetching activities with filters: {filters}")
             activities = await produttivo.get_activities(filters)
-            return _format_activities(activities, filters)
+            return _format_activities(activities, date_str)
         except Exception as e:
             logger.error(f"Error fetching activities: {e}")
             return "Não consegui buscar as atividades agora. Tente novamente em instantes."

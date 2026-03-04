@@ -3,104 +3,156 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RF Admin — Configuração de IA</title>
-  <link rel="stylesheet" href="assets/css/main.css?v=2.0.0" />
+  <title>RF Admin</title>
+  <link rel="stylesheet" href="assets/css/main.css?v=3.0.0" />
 </head>
 <body>
 
-  <header>
-    <h1>RF Admin <span class="badge">v2.0</span></h1>
-    <p>Painel de configuração do assistente WhatsApp</p>
-  </header>
-
-  <!-- Token auth -->
-  <div class="card" id="token-section">
-    <h2>Autenticação</h2>
-    <form id="token-form">
-      <div class="form-group">
-        <label for="admin-token">Token de acesso</label>
-        <input type="password" id="admin-token" placeholder="Insira o ADMIN_TOKEN" autocomplete="current-password" required />
-      </div>
-      <button type="submit" class="btn">Entrar</button>
-    </form>
-  </div>
-
-  <!-- Main panel -->
-  <div id="main-section" style="display:none; width:100%; max-width:560px;">
-
-    <!-- Modelo ativo -->
-    <div class="card">
-      <h2>Modelo em uso</h2>
-      <div class="form-group">
-        <label for="active-select">Selecione o modelo ativo</label>
-        <select id="active-select">
-          <option value="">— Nenhum modelo cadastrado —</option>
-        </select>
-      </div>
-      <button class="btn btn-secondary" id="activate-btn">Definir como ativo</button>
-      <div id="active-feedback" class="feedback"></div>
-    </div>
-
-    <!-- Lista de modelos -->
-    <div class="card">
-      <h2>Modelos cadastrados</h2>
-      <div id="models-list">
-        <p class="empty-state">Nenhum modelo cadastrado ainda.</p>
-      </div>
-    </div>
-
-    <!-- Formulário cadastro / edição -->
-    <div class="card">
-      <h2 id="form-title">Cadastrar modelo</h2>
-      <form id="model-form">
-        <input type="hidden" id="edit-id" />
-
+  <!-- Auth screen -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <h1>RF Admin <span class="badge">v3.0</span></h1>
+      <p class="auth-subtitle">Painel de configuração do assistente WhatsApp</p>
+      <form id="token-form">
         <div class="form-group">
-          <label for="name">Nome do modelo</label>
-          <input type="text" id="name" placeholder="Ex: Gemini gratuito, GPT pro" required />
+          <label for="admin-token">Token de acesso</label>
+          <input type="password" id="admin-token" placeholder="Insira o ADMIN_TOKEN" autocomplete="current-password" required />
         </div>
-
-        <div class="form-group">
-          <label for="provider">Provedor</label>
-          <select id="provider" required>
-            <option value="">Selecione...</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="groq">Groq (gratuito)</option>
-            <option value="google">Google Gemini</option>
-            <option value="openrouter">OpenRouter</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="model">Modelo</label>
-          <input type="text" id="model" list="model-suggestions" placeholder="Ex: gemini-1.5-flash" autocomplete="off" required />
-          <datalist id="model-suggestions"></datalist>
-        </div>
-
-        <div class="form-group">
-          <label for="api-key">Chave de API</label>
-          <input type="password" id="api-key" placeholder="Insira a chave de API" autocomplete="off" />
-          <span class="field-hint" id="key-hint" style="display:none;">Deixe em branco para manter a chave atual</span>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="form-actions">
-          <button type="submit" class="btn" id="save-btn">Cadastrar</button>
-          <button type="button" class="btn btn-ghost" id="cancel-btn" style="display:none;">Cancelar</button>
-        </div>
-        <div id="form-feedback" class="feedback"></div>
+        <button type="submit" class="btn">Entrar</button>
       </form>
     </div>
-
-    <div style="display:flex; justify-content:flex-end;">
-      <button id="logout-btn" class="btn-logout">Sair</button>
-    </div>
   </div>
 
-  <footer>A Sol da RF &mdash; WhatsApp Assistant Backend</footer>
+  <!-- App shell -->
+  <div id="app" style="display:none;">
 
-  <script type="module" src="assets/js/config.js?v=2.0.0"></script>
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <span class="sidebar__logo-text">RF Admin</span>
+        <span class="badge">v3.0</span>
+      </div>
+
+      <nav class="sidebar__nav">
+        <button class="nav-item nav-item--active" data-section="models">
+          <span class="nav-icon">🤖</span>
+          Modelos de IA
+        </button>
+        <button class="nav-item" data-section="phones">
+          <span class="nav-icon">📱</span>
+          Números autorizados
+        </button>
+      </nav>
+
+      <button id="logout-btn" class="sidebar__logout">Sair</button>
+    </aside>
+
+    <main class="content">
+
+      <!-- Section: Modelos de IA -->
+      <section id="section-models" class="section">
+        <div class="section__header">
+          <h2>Modelos de IA</h2>
+          <p>Gerencie os modelos disponíveis e defina qual está em uso.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Modelo em uso</h3>
+          <div class="form-group">
+            <label for="active-select">Selecione o modelo ativo</label>
+            <select id="active-select">
+              <option value="">— Nenhum modelo cadastrado —</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="activate-btn">Definir como ativo</button>
+          <div id="active-feedback" class="feedback"></div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Modelos cadastrados</h3>
+          <div id="models-list">
+            <p class="empty-state">Nenhum modelo cadastrado ainda.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="model-form-title">Cadastrar modelo</h3>
+          <form id="model-form">
+            <input type="hidden" id="edit-model-id" />
+            <div class="form-group">
+              <label for="model-name">Nome</label>
+              <input type="text" id="model-name" placeholder="Ex: Gemini gratuito" required />
+            </div>
+            <div class="form-group">
+              <label for="provider">Provedor</label>
+              <select id="provider" required>
+                <option value="">Selecione...</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="groq">Groq (gratuito)</option>
+                <option value="google">Google Gemini</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="model-id-input">Modelo</label>
+              <input type="text" id="model-id-input" list="model-suggestions" placeholder="Ex: gemini-1.5-flash" autocomplete="off" required />
+              <datalist id="model-suggestions"></datalist>
+            </div>
+            <div class="form-group">
+              <label for="api-key">Chave de API</label>
+              <input type="password" id="api-key" placeholder="Insira a chave de API" autocomplete="off" />
+              <span class="field-hint" id="key-hint" style="display:none;">Deixe em branco para manter a chave atual</span>
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-model-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-model-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="model-form-feedback" class="feedback"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Section: Números autorizados -->
+      <section id="section-phones" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Números autorizados</h2>
+          <p>Apenas estes números podem interagir com o assistente. Lista vazia bloqueia todos.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Números cadastrados</h3>
+          <div id="phones-list">
+            <p class="empty-state">Nenhum número cadastrado. Todos os contatos estão bloqueados.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="phone-form-title">Cadastrar número</h3>
+          <form id="phone-form">
+            <input type="hidden" id="edit-phone-id" />
+            <div class="form-group">
+              <label for="phone-number">Número (WhatsApp)</label>
+              <input type="text" id="phone-number" placeholder="Ex: 11999999999 ou 5511999999999" required />
+              <span class="field-hint">DDI 55 é adicionado automaticamente se não informado.</span>
+            </div>
+            <div class="form-group">
+              <label for="phone-name">Nome / apelido</label>
+              <input type="text" id="phone-name" placeholder="Ex: João Técnico (opcional)" />
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-phone-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-phone-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="phone-form-feedback" class="feedback"></div>
+          </form>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="assets/js/config.js?v=3.0.0"></script>
 </body>
 </html>

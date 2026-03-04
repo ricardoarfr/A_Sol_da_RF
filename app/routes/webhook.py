@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Request, HTTPException
 from app.models.webhook import ZAPIWebhookPayload
 from app.services.zapi import send_text_message
-from app.services import produttivo
+from app.services import produttivo, phone_auth
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,11 @@ async def zapi_webhook(request: Request):
         return {"status": "ignored", "reason": "no_text_or_phone"}
 
     logger.info(f"Message from {phone}: {text}")
+
+    if not phone_auth.is_authorized(phone):
+        logger.info(f"Unauthorized phone: {phone}")
+        await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
+        return {"status": "unauthorized"}
 
     reply = await handle_message(phone, text)
 

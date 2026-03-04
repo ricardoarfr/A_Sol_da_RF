@@ -116,6 +116,7 @@ Para integrar um novo sistema (ex: Voalle):
    - Tipos: `feat`, `fix`, `refactor`, `docs`, `chore`
    - Exemplo: `feat: adicionar consulta de saldo via Voalle`
 6. Push para o branch correto (nunca main diretamente)
+7. **Sempre criar um Pull Request automaticamente após o push**, usando `gh pr create` com título e descrição resumindo as mudanças, base `main` e head no branch atual
 
 ---
 

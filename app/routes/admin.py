@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config
+from app.services import ai_config, phone_auth
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,8 @@ def _require_admin(token: str = Depends(_api_key_header)) -> None:
     if not token or token != settings.ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+
+# --- AI Models ---
 
 class AIModelPayload(BaseModel):
     name: str
@@ -39,8 +41,7 @@ async def list_models() -> dict:
 @router.post("/ai-models", dependencies=[Depends(_require_admin)])
 async def add_model(payload: AIModelPayload) -> dict:
     try:
-        model = ai_config.add_model(payload.name, payload.provider, payload.model, payload.api_key)
-        return model
+        return ai_config.add_model(payload.name, payload.provider, payload.model, payload.api_key)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -48,8 +49,7 @@ async def add_model(payload: AIModelPayload) -> dict:
 @router.put("/ai-models/{model_id}", dependencies=[Depends(_require_admin)])
 async def update_model(model_id: str, payload: AIModelUpdatePayload) -> dict:
     try:
-        model = ai_config.update_model(model_id, payload.name, payload.provider, payload.model, payload.api_key or None)
-        return model
+        return ai_config.update_model(model_id, payload.name, payload.provider, payload.model, payload.api_key or None)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -67,3 +67,37 @@ async def activate_model(model_id: str) -> dict:
         return {"status": "ok", "active_id": model_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# --- Authorized Phones ---
+
+class PhonePayload(BaseModel):
+    phone: str
+    name: str = ""
+
+
+@router.get("/phones", dependencies=[Depends(_require_admin)])
+async def list_phones() -> dict:
+    return {"phones": phone_auth.list_phones()}
+
+
+@router.post("/phones", dependencies=[Depends(_require_admin)])
+async def add_phone(payload: PhonePayload) -> dict:
+    try:
+        return phone_auth.add_phone(payload.phone, payload.name)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.put("/phones/{phone_id}", dependencies=[Depends(_require_admin)])
+async def update_phone(phone_id: str, payload: PhonePayload) -> dict:
+    try:
+        return phone_auth.update_phone(phone_id, payload.phone, payload.name)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.delete("/phones/{phone_id}", dependencies=[Depends(_require_admin)])
+async def delete_phone(phone_id: str) -> dict:
+    phone_auth.delete_phone(phone_id)
+    return {"status": "ok"}

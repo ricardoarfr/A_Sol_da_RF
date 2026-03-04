@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # App
     WEBHOOK_SECRET: str = ""
     LOG_LEVEL: str = "INFO"
+    ADMIN_TOKEN: str = "admin"  # Override in .env with a strong token
 
     class Config:
         env_file = ".env"

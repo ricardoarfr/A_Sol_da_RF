@@ -110,11 +110,12 @@ Para integrar um novo sistema (ex: Voalle):
 
 1. Ler os arquivos relevantes antes de qualquer alteração
 2. Entender o impacto da mudança na arquitetura existente
-3. Fazer a menor alteração possível que resolve o problema
-4. Commitar com mensagem clara no padrão: `tipo: descrição curta`
+3. **Antes de qualquer alteração:** apresentar ao usuário um resumo curto do que será feito (arquivos criados, modificados ou deletados) e aguardar aprovação explícita antes de escrever qualquer código
+4. Fazer a menor alteração possível que resolve o problema
+5. Commitar com mensagem clara no padrão: `tipo: descrição curta`
    - Tipos: `feat`, `fix`, `refactor`, `docs`, `chore`
    - Exemplo: `feat: adicionar consulta de saldo via Voalle`
-5. Push para o branch correto (nunca main diretamente)
+6. Push para o branch correto (nunca main diretamente)
 
 ---
 

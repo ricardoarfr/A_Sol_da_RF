@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth
+from app.services import ai_config, phone_auth, ai
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,10 @@ async def list_models() -> dict:
 
 @router.post("/ai-models", dependencies=[Depends(_require_admin)])
 async def add_model(payload: AIModelPayload) -> dict:
+    try:
+        await ai.validate_key(payload.provider, payload.model, payload.api_key)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     try:
         return ai_config.add_model(payload.name, payload.provider, payload.model, payload.api_key)
     except ValueError as e:

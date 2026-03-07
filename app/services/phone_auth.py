@@ -10,10 +10,13 @@ CONFIG_PATH = Path("data/authorized_phones.json")
 
 
 def normalize_phone(phone: str) -> str:
-    """Strip non-digits and ensure Brazilian DDI prefix (55)."""
+    """Strip non-digits, ensure DDI 55, and remove the 9th digit from mobile numbers (BR normalization)."""
     digits = re.sub(r"\D", "", phone)
     if not digits.startswith("55"):
         digits = "55" + digits
+    # 55 + DD(2) + 9 + number(8) = 13 digits → strip the leading 9 of the local number
+    if len(digits) == 13 and digits[4] == "9":
+        digits = digits[:4] + digits[5:]
     return digits
 
 

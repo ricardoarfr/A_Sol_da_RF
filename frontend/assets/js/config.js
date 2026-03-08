@@ -30,6 +30,12 @@ function initNav() {
       const section = btn.dataset.section;
       document.querySelectorAll(".section").forEach((s) => s.style.display = "none");
       document.getElementById(`section-${section}`).style.display = "block";
+
+      if (section === "whatsapp") {
+        startWaPolling();
+      } else {
+        stopWaPolling();
+      }
     });
   });
 }
@@ -272,6 +278,73 @@ window.removePhone = async function (id, label) {
     showFeedback("phone-form-feedback", e.message, "error");
   }
 };
+
+// =====================
+// WHATSAPP
+// =====================
+
+const WA_STATUS_LABELS = {
+  disconnected: "Desconectado",
+  qr: "Aguardando scan do QR code...",
+  connecting: "Conectando...",
+  connected: "Conectado",
+};
+
+const WA_STATUS_COLORS = {
+  disconnected: "var(--error)",
+  qr: "#f59e0b",
+  connecting: "#f59e0b",
+  connected: "var(--success)",
+};
+
+let _waPolling = null;
+
+function updateWaUI(status) {
+  const indicator = document.getElementById("wa-indicator");
+  const statusText = document.getElementById("wa-status-text");
+  const qrCard = document.getElementById("qr-card");
+
+  indicator.style.background = WA_STATUS_COLORS[status] || "var(--text-muted)";
+  statusText.textContent = WA_STATUS_LABELS[status] || status;
+
+  if (status === "qr") {
+    qrCard.style.display = "block";
+    loadQr();
+  } else {
+    qrCard.style.display = "none";
+    document.getElementById("qr-image").src = "";
+  }
+}
+
+async function loadWaStatus() {
+  try {
+    const data = await apiFetch("/admin/whatsapp/status");
+    updateWaUI(data.status);
+  } catch {
+    updateWaUI("disconnected");
+  }
+}
+
+async function loadQr() {
+  try {
+    const data = await apiFetch("/admin/whatsapp/qr");
+    document.getElementById("qr-image").src = data.qrDataUrl;
+  } catch {
+    // QR ainda não disponível
+  }
+}
+
+function startWaPolling() {
+  loadWaStatus();
+  _waPolling = setInterval(loadWaStatus, 3000);
+}
+
+function stopWaPolling() {
+  if (_waPolling) {
+    clearInterval(_waPolling);
+    _waPolling = null;
+  }
+}
 
 // =====================
 // AUTH

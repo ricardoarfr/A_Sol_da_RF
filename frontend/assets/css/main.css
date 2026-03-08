@@ -431,3 +431,37 @@ select option { background: var(--surface); }
     max-width: 100%;
   }
 }
+
+/* =====================
+   WHATSAPP
+   ===================== */
+
+.wa-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.wa-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.qr-container img {
+  width: 220px;
+  height: 220px;
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 8px;
+}

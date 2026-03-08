@@ -1,7 +1,7 @@
 import logging
 from datetime import date, timedelta
 from fastapi import APIRouter, Request, HTTPException
-from app.models.webhook import ZAPIWebhookPayload
+from app.models.webhook import ZAPIWebhookPayload, BaileysWebhookPayload
 from app.services.zapi import send_text_message
 from app.services import produttivo, phone_auth, ai
 
@@ -40,6 +40,30 @@ async def zapi_webhook(request: Request):
 
     reply = await handle_message(phone, text)
 
+    await send_text_message(phone, reply)
+    return {"status": "ok"}
+
+
+@router.post("/webhook/baileys")
+async def baileys_webhook(request: Request):
+    """Receive and process incoming WhatsApp messages forwarded from whatsapp-service (Baileys)."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    payload = BaileysWebhookPayload(**body)
+    phone = payload.phone
+    text = payload.message
+
+    logger.info(f"Baileys message from {phone}: {text}")
+
+    if not phone_auth.is_authorized(phone):
+        logger.info(f"Unauthorized phone: {phone}")
+        await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
+        return {"status": "unauthorized"}
+
+    reply = await handle_message(phone, text)
     await send_text_message(phone, reply)
     return {"status": "ok"}
 

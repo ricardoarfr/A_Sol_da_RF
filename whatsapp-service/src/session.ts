@@ -26,6 +26,28 @@ let _reconnectTimer: NodeJS.Timeout | null = null;
 /** Mapeia LID (sem sufixo) → número de telefone (sem sufixo) para resolver @lid JIDs */
 const _lidToPhone = new Map<string, string>();
 
+/** Fila de mensagens aguardando resolução de @lid */
+const _pendingLid = new Map<
+  string,
+  Array<{ message: string; messageId?: string; senderName: string }>
+>();
+
+/** Registra mapeamento lid→phone e processa mensagens pendentes desse lid */
+function _addLidMapping(lid: string, phone: string): void {
+  if (!lid || !phone) return;
+  _lidToPhone.set(lid, phone);
+  const pending = _pendingLid.get(lid);
+  if (pending?.length) {
+    _pendingLid.delete(lid);
+    console.info(
+      `[session] Processando ${pending.length} mensagem(ns) pendente(s) do lid ${lid} → ${phone}`
+    );
+    for (const item of pending) {
+      forwardToPython({ phone, ...item });
+    }
+  }
+}
+
 export function getStatus(): SessionStatus {
   return _status;
 }
@@ -49,6 +71,8 @@ function closeSocket(): void {
     _sock.ev.removeAllListeners("connection.update");
     _sock.ev.removeAllListeners("messages.upsert");
     _sock.ev.removeAllListeners("creds.update");
+    _sock.ev.removeAllListeners("contacts.upsert");
+    _sock.ev.removeAllListeners("contacts.set");
     _sock.ws.close();
   } catch {
     // ignora erros ao fechar socket já encerrado
@@ -177,7 +201,6 @@ export async function startSession(): Promise<void> {
       }
 
       // Sessão inválida: device pairing rejeitado pelo WhatsApp
-      // Limpa auth e reinicia do zero para gerar novo QR
       if (statusCode === 405) {
         console.warn("[session] Sessão inválida (405) — limpando auth e reiniciando");
         _reconnectAttempt = 0;
@@ -195,13 +218,31 @@ export async function startSession(): Promise<void> {
     }
   });
 
+  // Carga inicial de contatos (bulk) — popula mapeamento lid→phone e processa fila pendente
+  _sock.ev.on("contacts.set", ({ contacts }) => {
+    let mapped = 0;
+    for (const contact of contacts) {
+      if (contact.lid && contact.id) {
+        const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
+        const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
+        if (phone && lid) {
+          _addLidMapping(lid, phone);
+          mapped++;
+        }
+      }
+    }
+    if (mapped > 0) {
+      console.info(`[session] contacts.set: ${mapped} mapeamento(s) lid→phone carregado(s)`);
+    }
+  });
+
   _sock.ev.on("contacts.upsert", (contacts) => {
     for (const contact of contacts) {
       if (contact.lid && contact.id) {
         const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
         const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
         if (phone && lid) {
-          _lidToPhone.set(lid, phone);
+          _addLidMapping(lid, phone);
         }
       }
     }
@@ -216,14 +257,15 @@ export async function startSession(): Promise<void> {
 
       const remoteJid = msg.key.remoteJid ?? "";
       let phone = "";
+      let lidKey = "";
 
       if (remoteJid.endsWith("@s.whatsapp.net")) {
         phone = remoteJid.replace("@s.whatsapp.net", "");
       } else if (remoteJid.endsWith("@lid")) {
-        const lid = remoteJid.replace(/@lid$/, "");
-        phone = _lidToPhone.get(lid) ?? "";
+        lidKey = remoteJid.replace(/@lid$/, "");
+        phone = _lidToPhone.get(lidKey) ?? "";
         if (!phone) {
-          console.warn(`[session] @lid sem mapeamento: ${remoteJid} — sincronização de contatos ainda pendente`);
+          console.warn(`[session] @lid sem mapeamento: ${remoteJid} — enfileirando mensagem`);
         }
       } else {
         continue; // grupo ou JID desconhecido
@@ -234,7 +276,22 @@ export async function startSession(): Promise<void> {
         msg.message?.extendedTextMessage?.text ||
         "";
 
-      if (!phone || !text) continue;
+      if (!text) continue;
+
+      // @lid ainda não mapeado → enfileira para processar quando contatos chegarem
+      if (lidKey && !phone) {
+        const queue = _pendingLid.get(lidKey) ?? [];
+        queue.push({
+          message: text,
+          messageId: msg.key.id ?? undefined,
+          senderName: msg.pushName ?? "",
+        });
+        _pendingLid.set(lidKey, queue);
+        console.info(
+          `[session] Mensagem de @lid ${lidKey} enfileirada (total: ${queue.length})`
+        );
+        continue;
+      }
 
       console.info(`[session] Mensagem de ${phone}: ${text.slice(0, 60)}`);
 

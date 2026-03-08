@@ -37,7 +37,9 @@ class AIModelUpdatePayload(BaseModel):
 
 @router.get("/ai-models", dependencies=[Depends(_require_admin)])
 async def list_models() -> dict:
-    return {"models": ai_config.list_models(), "active_id": ai_config._load().get("active_id")}
+    models = await ai_config.list_models()
+    active = next((m["id"] for m in models if m.get("is_active")), None)
+    return {"models": models, "active_id": active}
 
 
 @router.post("/ai-models", dependencies=[Depends(_require_admin)])
@@ -47,7 +49,7 @@ async def add_model(payload: AIModelPayload) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     try:
-        return ai_config.add_model(payload.name, payload.provider, payload.model, payload.api_key)
+        return await ai_config.add_model(payload.name, payload.provider, payload.model, payload.api_key)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -60,21 +62,21 @@ async def update_model(model_id: str, payload: AIModelUpdatePayload) -> dict:
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
     try:
-        return ai_config.update_model(model_id, payload.name, payload.provider, payload.model, payload.api_key or None)
+        return await ai_config.update_model(model_id, payload.name, payload.provider, payload.model, payload.api_key or None)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.delete("/ai-models/{model_id}", dependencies=[Depends(_require_admin)])
 async def delete_model(model_id: str) -> dict:
-    ai_config.delete_model(model_id)
+    await ai_config.delete_model(model_id)
     return {"status": "ok"}
 
 
 @router.put("/ai-models/{model_id}/activate", dependencies=[Depends(_require_admin)])
 async def activate_model(model_id: str) -> dict:
     try:
-        ai_config.activate_model(model_id)
+        await ai_config.activate_model(model_id)
         return {"status": "ok", "active_id": model_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -125,13 +127,13 @@ class PhonePayload(BaseModel):
 
 @router.get("/phones", dependencies=[Depends(_require_admin)])
 async def list_phones() -> dict:
-    return {"phones": phone_auth.list_phones()}
+    return {"phones": await phone_auth.list_phones()}
 
 
 @router.post("/phones", dependencies=[Depends(_require_admin)])
 async def add_phone(payload: PhonePayload) -> dict:
     try:
-        return phone_auth.add_phone(payload.phone, payload.name)
+        return await phone_auth.add_phone(payload.phone, payload.name)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -139,12 +141,12 @@ async def add_phone(payload: PhonePayload) -> dict:
 @router.put("/phones/{phone_id}", dependencies=[Depends(_require_admin)])
 async def update_phone(phone_id: str, payload: PhonePayload) -> dict:
     try:
-        return phone_auth.update_phone(phone_id, payload.phone, payload.name)
+        return await phone_auth.update_phone(phone_id, payload.phone, payload.name)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.delete("/phones/{phone_id}", dependencies=[Depends(_require_admin)])
 async def delete_phone(phone_id: str) -> dict:
-    phone_auth.delete_phone(phone_id)
+    await phone_auth.delete_phone(phone_id)
     return {"status": "ok"}

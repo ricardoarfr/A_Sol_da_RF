@@ -8,6 +8,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: a-sol-da-rf-db
+          property: connectionString
       - key: PRODUTTIVO_SESSION_COOKIE
         sync: false
       - key: PRODUTTIVO_ACCOUNT_ID
@@ -30,7 +34,15 @@ services:
     buildCommand: cd whatsapp-service && npm install && npm run build
     startCommand: node whatsapp-service/dist/server.js
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: a-sol-da-rf-db
+          property: connectionString
       - key: PYTHON_WEBHOOK_URL
         sync: false
       - key: AUTH_DIR
         value: ./whatsapp-auth
+
+databases:
+  - name: a-sol-da-rf-db
+    plan: free

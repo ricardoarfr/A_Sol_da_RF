@@ -8,6 +8,7 @@ import { Boom } from "@hapi/boom";
 import path from "path";
 import { chmod, mkdir, rm, writeFile, readFile } from "fs/promises";
 import { existsSync } from "fs";
+import { loadCreds, saveCreds as saveCredsToDb } from "./db";
 
 const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./whatsapp-auth");
 const PYTHON_WEBHOOK_URL =
@@ -91,19 +92,18 @@ async function validateCredsJson(): Promise<boolean> {
   }
 }
 
-async function restoreCredsFromEnv(): Promise<void> {
-  const b64 = process.env.WHATSAPP_CREDS_B64;
-  if (!b64) return;
+async function restoreCredsFromDb(): Promise<void> {
   const credsPath = path.join(AUTH_DIR, "creds.json");
-  if (existsSync(credsPath)) return; // já existe — não sobrescreve
+  if (existsSync(credsPath)) return; // já existe no disco — não sobrescreve
   try {
-    const content = Buffer.from(b64, "base64").toString("utf8");
-    JSON.parse(content); // valida antes de escrever
+    const json = await loadCreds();
+    if (!json) return;
+    JSON.parse(json); // valida antes de escrever
     await mkdir(AUTH_DIR, { recursive: true });
-    await writeFile(credsPath, content, { mode: 0o600 });
-    console.info("[session] Credenciais restauradas via WHATSAPP_CREDS_B64");
-  } catch {
-    console.error("[session] WHATSAPP_CREDS_B64 contém JSON inválido — ignorando");
+    await writeFile(credsPath, json, { mode: 0o600 });
+    console.info("[session] Credenciais restauradas do banco de dados");
+  } catch (err) {
+    console.error("[session] Erro ao restaurar credenciais do banco:", err);
   }
 }
 
@@ -111,7 +111,7 @@ export async function startSession(): Promise<void> {
   closeSocket();
   cancelReconnect();
 
-  await restoreCredsFromEnv();
+  await restoreCredsFromDb();
 
   const credsValid = await validateCredsJson();
   if (!credsValid) {
@@ -247,7 +247,16 @@ export async function startSession(): Promise<void> {
     }
   });
 
-  _sock.ev.on("creds.update", saveCreds);
+  _sock.ev.on("creds.update", async () => {
+    await saveCreds(); // salva no disco (Baileys)
+    try {
+      const credsPath = path.join(AUTH_DIR, "creds.json");
+      const json = await readFile(credsPath, "utf8");
+      await saveCredsToDb(json); // persiste no banco PostgreSQL
+    } catch (err) {
+      console.error("[session] Erro ao persistir creds no banco:", err);
+    }
+  });
 }
 
 async function forwardToPython(data: {

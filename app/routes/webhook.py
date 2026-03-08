@@ -33,7 +33,7 @@ async def zapi_webhook(request: Request):
 
     logger.info(f"Message from {phone}: {text}")
 
-    if not phone_auth.is_authorized(phone):
+    if not await phone_auth.is_authorized(phone):
         logger.info(f"Unauthorized phone: {phone}")
         await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
         return {"status": "unauthorized"}
@@ -58,7 +58,7 @@ async def baileys_webhook(request: Request):
 
     logger.info(f"Baileys message from {phone}: {text}")
 
-    if not phone_auth.is_authorized(phone):
+    if not await phone_auth.is_authorized(phone):
         logger.info(f"Unauthorized phone: {phone}")
         await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
         return {"status": "unauthorized"}

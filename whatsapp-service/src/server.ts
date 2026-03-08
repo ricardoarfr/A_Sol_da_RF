@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import QRCode from "qrcode";
-import { startSession, resetSession, getStatus, getQr, sendMessage } from "./session";
+import { startSession, resetSession, mapLid, getStatus, getQr, sendMessage } from "./session";
 
 const app = express();
 app.use(express.json());
@@ -32,6 +32,17 @@ app.get("/qr", async (_req: Request, res: Response) => {
   }
   const dataUrl = await QRCode.toDataURL(qr, { scale: 6, margin: 4 });
   res.json({ qrDataUrl: dataUrl });
+});
+
+// Registra manualmente mapeamento lid→phone (persiste no banco e processa fila)
+app.post("/map-lid", (req: Request, res: Response) => {
+  const { lid, phone } = req.body;
+  if (!lid || !phone) {
+    res.status(400).json({ error: "Campos obrigatórios: lid, phone" });
+    return;
+  }
+  mapLid(lid, phone);
+  res.json({ status: "mapped", lid, phone });
 });
 
 // Reseta sessão: apaga credenciais e força novo QR

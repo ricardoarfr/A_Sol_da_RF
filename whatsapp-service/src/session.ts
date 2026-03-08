@@ -74,6 +74,10 @@ function _indexContacts(contacts: Array<{ id?: string | null; lid?: string | nul
   }
 }
 
+export function mapLid(lid: string, phone: string): void {
+  _addLidMapping(lid.replace(/@lid$/, ""), phone.replace(/\D/g, ""));
+}
+
 export function getStatus(): SessionStatus {
   return _status;
 }
@@ -188,7 +192,7 @@ export async function startSession(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   const { version } = await fetchLatestBaileysVersion();
-  console.info("[session] usando versão WA:", version);
+  console.info("[session] usado versão WA:", version);
 
   _sock = makeWASocket({
     version,

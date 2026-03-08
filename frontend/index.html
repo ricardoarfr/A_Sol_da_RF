@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RF Admin</title>
-  <link rel="stylesheet" href="assets/css/main.css?v=3.2.0" />
+  <link rel="stylesheet" href="assets/css/main.css?v=4.0.0" />
 </head>
 <body>
 
   <!-- Auth screen -->
   <div id="auth-screen" class="auth-screen">
     <div class="auth-card">
-      <h1>RF Admin <span class="badge">v3.2</span></h1>
+      <h1>RF Admin <span class="badge">v4.0</span></h1>
       <p class="auth-subtitle">Painel de configuração do assistente WhatsApp</p>
       <form id="token-form">
         <div class="form-group">
@@ -30,7 +30,7 @@
     <aside class="sidebar">
       <div class="sidebar__logo">
         <span class="sidebar__logo-text">RF Admin</span>
-        <span class="badge">v3.2</span>
+        <span class="badge">v4.0</span>
       </div>
 
       <nav class="sidebar__nav">
@@ -40,11 +40,35 @@
         </button>
         <button class="nav-item" data-section="phones">
           <span class="nav-icon">📱</span>
-          Números autorizados
+          Números
         </button>
         <button class="nav-item" data-section="whatsapp">
           <span class="nav-icon">🟢</span>
           WhatsApp
+        </button>
+        <button class="nav-item" data-section="systems">
+          <span class="nav-icon">🔌</span>
+          Sistemas
+        </button>
+        <button class="nav-item" data-section="auth">
+          <span class="nav-icon">🔑</span>
+          Auth Methods
+        </button>
+        <button class="nav-item" data-section="endpoints">
+          <span class="nav-icon">🔗</span>
+          Endpoints
+        </button>
+        <button class="nav-item" data-section="agents">
+          <span class="nav-icon">🧠</span>
+          Agentes
+        </button>
+        <button class="nav-item" data-section="import">
+          <span class="nav-icon">📥</span>
+          Import
+        </button>
+        <button class="nav-item" data-section="simulator">
+          <span class="nav-icon">⚡</span>
+          Simulador
         </button>
       </nav>
 
@@ -53,7 +77,7 @@
 
     <main class="content">
 
-      <!-- Section: Modelos de IA -->
+      <!-- ────────────────── MODELOS DE IA ────────────────── -->
       <section id="section-models" class="section">
         <div class="section__header">
           <h2>Modelos de IA</h2>
@@ -111,7 +135,7 @@
         </div>
       </section>
 
-      <!-- Section: Números autorizados -->
+      <!-- ────────────────── NÚMEROS ────────────────── -->
       <section id="section-phones" class="section" style="display:none;">
         <div class="section__header">
           <h2>Números autorizados</h2>
@@ -148,7 +172,7 @@
         </div>
       </section>
 
-      <!-- Section: WhatsApp -->
+      <!-- ────────────────── WHATSAPP ────────────────── -->
       <section id="section-whatsapp" class="section" style="display:none;">
         <div class="section__header">
           <h2>WhatsApp</h2>
@@ -178,9 +202,423 @@
         </div>
       </section>
 
+      <!-- ────────────────── SISTEMAS ────────────────── -->
+      <section id="section-systems" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Sistemas</h2>
+          <p>Cadastre os sistemas externos que serão acessados pelos agentes via endpoints.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Sistemas cadastrados</h3>
+          <div id="systems-list">
+            <p class="empty-state">Carregando...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="sys-form-title">Cadastrar sistema</h3>
+          <form id="sys-form">
+            <input type="hidden" id="edit-sys-id" />
+            <div class="form-group">
+              <label for="sys-name">Nome</label>
+              <input type="text" id="sys-name" placeholder="Ex: Produttivo" required />
+            </div>
+            <div class="form-group">
+              <label for="sys-base-url">Base URL</label>
+              <input type="text" id="sys-base-url" placeholder="https://api.exemplo.com" required />
+            </div>
+            <div class="form-group">
+              <label for="sys-desc">Descrição</label>
+              <input type="text" id="sys-desc" placeholder="Opcional" />
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-sys-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-sys-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="sys-feedback" class="feedback"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ────────────────── AUTH METHODS ────────────────── -->
+      <section id="section-auth" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Auth Methods</h2>
+          <p>Configure métodos de autenticação reutilizáveis para os endpoints.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Métodos cadastrados</h3>
+          <div id="auth-list">
+            <p class="empty-state">Carregando...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="auth-form-title">Cadastrar método</h3>
+          <form id="auth-form">
+            <input type="hidden" id="edit-auth-id" />
+            <div class="form-group">
+              <label for="auth-name">Nome</label>
+              <input type="text" id="auth-name" placeholder="Ex: Produttivo Bearer" required />
+            </div>
+            <div class="form-group">
+              <label for="auth-type">Tipo</label>
+              <select id="auth-type" required>
+                <option value="">Selecione...</option>
+                <option value="bearer">Bearer Token</option>
+                <option value="oauth">OAuth Token</option>
+                <option value="api_key">API Key</option>
+                <option value="basic">Basic Auth</option>
+                <option value="custom_header">Custom Header</option>
+                <option value="cookie_session">Cookie / Session</option>
+                <option value="reverse_engineering">Reverse Engineering</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="auth-config">Configuração (JSON)</label>
+              <textarea id="auth-config" class="json-textarea" placeholder="{}" required>{}</textarea>
+              <span class="field-hint">Selecione o tipo acima para ver um exemplo.</span>
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-auth-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-auth-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="auth-feedback" class="feedback"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ────────────────── ENDPOINTS ────────────────── -->
+      <section id="section-endpoints" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Endpoints</h2>
+          <p>Gerencie os endpoints do catálogo. Use ⚡ para simular (dry-run) ou ▶ para executar.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Endpoints cadastrados</h3>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="ep-filter-sys">Filtrar por sistema</label>
+            <select id="ep-filter-sys">
+              <option value="">Todos os sistemas</option>
+            </select>
+          </div>
+          <div id="ep-list">
+            <p class="empty-state">Carregando...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="ep-form-title">Cadastrar endpoint</h3>
+          <form id="ep-form">
+            <input type="hidden" id="edit-ep-id" />
+            <div class="form-group">
+              <label for="ep-system-id">Sistema</label>
+              <select id="ep-system-id" required>
+                <option value="">Selecione um sistema...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ep-name">Nome</label>
+              <input type="text" id="ep-name" placeholder="Ex: Listar atividades" required />
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div class="form-group" style="width:140px;flex-shrink:0;">
+                <label for="ep-method">Método</label>
+                <select id="ep-method" required>
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label for="ep-path">Path</label>
+                <input type="text" id="ep-path" placeholder="/api/activities/{date}" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="ep-auth-method-id">Auth Method</label>
+              <select id="ep-auth-method-id">
+                <option value="">Sem autenticação</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ep-headers">Headers (JSON)</label>
+              <textarea id="ep-headers" class="json-textarea">{}</textarea>
+            </div>
+            <div class="form-group">
+              <label for="ep-query-params">Query Params (JSON)</label>
+              <textarea id="ep-query-params" class="json-textarea">{}</textarea>
+            </div>
+            <div class="form-group">
+              <label for="ep-body">Body Template (JSON)</label>
+              <textarea id="ep-body" class="json-textarea">{}</textarea>
+            </div>
+            <div class="form-group">
+              <label for="ep-description">Descrição</label>
+              <input type="text" id="ep-description" placeholder="Opcional — descreve o que este endpoint faz" />
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-ep-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-ep-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="ep-feedback" class="feedback"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ────────────────── AGENTES ────────────────── -->
+      <section id="section-agents" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Agentes</h2>
+          <p>Configure os agentes que processam mensagens e chamam endpoints.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Agentes cadastrados</h3>
+          <div id="agents-list">
+            <p class="empty-state">Carregando...</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title" id="agent-form-title">Cadastrar agente</h3>
+          <form id="agent-form">
+            <input type="hidden" id="edit-agent-id" />
+            <div class="form-group">
+              <label for="agent-name">Nome</label>
+              <input type="text" id="agent-name" placeholder="Ex: Assistente Produttivo" required />
+            </div>
+            <div class="form-group">
+              <label for="agent-type">Tipo</label>
+              <select id="agent-type" required>
+                <option value="internal">Internal (tool use)</option>
+                <option value="external">External (API direta)</option>
+                <option value="orchestrator">Orchestrator</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="agent-model-id">Modelo de IA</label>
+              <select id="agent-model-id">
+                <option value="">Usar modelo padrão da plataforma</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="agent-description">Descrição</label>
+              <input type="text" id="agent-description" placeholder="Descreve quando este agente deve ser ativado" />
+            </div>
+            <div class="form-group">
+              <label for="agent-system-prompt">System Prompt</label>
+              <textarea id="agent-system-prompt" style="min-height:120px;" placeholder="Instrução de comportamento do agente..."></textarea>
+            </div>
+            <div class="checkbox-group form-group">
+              <input type="checkbox" id="agent-is-active" checked />
+              <label for="agent-is-active">Agente ativo</label>
+            </div>
+            <hr class="divider" />
+            <div class="form-actions">
+              <button type="submit" class="btn" id="save-agent-btn">Cadastrar</button>
+              <button type="button" class="btn btn-ghost" id="cancel-agent-btn" style="display:none;">Cancelar</button>
+            </div>
+            <div id="agent-feedback" class="feedback"></div>
+          </form>
+        </div>
+
+        <!-- Endpoint assignment — shown when editing -->
+        <div class="card" id="agent-ep-card" style="display:none;">
+          <h3 class="card__title">Endpoints vinculados</h3>
+          <p class="field-hint" style="margin-bottom:16px;">Selecione os endpoints que este agente pode chamar como ferramentas.</p>
+          <div id="agent-ep-checklist"></div>
+          <hr class="divider" />
+          <button type="button" class="btn" id="save-agent-ep-btn">Salvar vínculos</button>
+          <div id="agent-ep-feedback" class="feedback"></div>
+        </div>
+
+        <!-- Agent test panel — shown when clicking "Testar" -->
+        <div class="card" id="agent-test-card" style="display:none;">
+          <h3 class="card__title" id="agent-test-title">Testar agente</h3>
+          <form id="agent-test-form">
+            <input type="hidden" id="agent-test-id" />
+            <div class="form-group">
+              <label for="agent-test-msg">Mensagem</label>
+              <textarea id="agent-test-msg" placeholder="Digite uma mensagem como se fosse o WhatsApp..." style="min-height:80px;" required></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn" id="agent-test-btn">Enviar</button>
+            </div>
+            <div id="agent-test-feedback" class="feedback"></div>
+          </form>
+          <div id="agent-test-result" class="result-box"></div>
+        </div>
+      </section>
+
+      <!-- ────────────────── IMPORT ────────────────── -->
+      <section id="section-import" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Import de APIs</h2>
+          <p>Importe endpoints a partir de Postman Collection, OpenAPI spec ou comando CURL.</p>
+        </div>
+
+        <div class="card">
+          <div class="tabs">
+            <button class="tab-btn tab-btn--active" data-group="import" data-tab="postman">Postman</button>
+            <button class="tab-btn" data-group="import" data-tab="openapi">OpenAPI / Swagger</button>
+            <button class="tab-btn" data-group="import" data-tab="curl">CURL</button>
+          </div>
+
+          <!-- Postman tab -->
+          <div id="tab-import-postman" class="tab-pane" data-group="import" data-tab="postman">
+            <form id="import-postman-form">
+              <div class="form-group">
+                <label for="import-sys-postman">Sistema destino</label>
+                <select id="import-sys-postman" required>
+                  <option value="">Selecione um sistema...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="import-postman-file">Arquivo Postman Collection (JSON)</label>
+                <input type="file" id="import-postman-file" accept=".json" required style="padding:8px 0;border:none;background:none;" />
+              </div>
+              <button type="submit" class="btn" id="import-postman-btn">Importar</button>
+              <div id="import-postman-feedback" class="feedback"></div>
+            </form>
+          </div>
+
+          <!-- OpenAPI tab -->
+          <div id="tab-import-openapi" class="tab-pane" data-group="import" data-tab="openapi" style="display:none;">
+            <form id="import-openapi-form">
+              <div class="form-group">
+                <label for="import-sys-openapi">Sistema destino</label>
+                <select id="import-sys-openapi" required>
+                  <option value="">Selecione um sistema...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="import-openapi-file">Arquivo OpenAPI / Swagger (JSON)</label>
+                <input type="file" id="import-openapi-file" accept=".json" required style="padding:8px 0;border:none;background:none;" />
+                <span class="field-hint">Apenas JSON. Arquivos .yaml não são suportados.</span>
+              </div>
+              <button type="submit" class="btn" id="import-openapi-btn">Importar</button>
+              <div id="import-openapi-feedback" class="feedback"></div>
+            </form>
+          </div>
+
+          <!-- CURL tab -->
+          <div id="tab-import-curl" class="tab-pane" data-group="import" data-tab="curl" style="display:none;">
+            <form id="import-curl-form">
+              <div class="form-group">
+                <label for="import-sys-curl">Sistema destino</label>
+                <select id="import-sys-curl" required>
+                  <option value="">Selecione um sistema...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="import-curl-name">Nome do endpoint</label>
+                <input type="text" id="import-curl-name" placeholder="Ex: Buscar usuário (opcional)" />
+              </div>
+              <div class="form-group">
+                <label for="import-curl-text">Comando CURL</label>
+                <textarea id="import-curl-text" class="json-textarea" style="min-height:120px;" placeholder="curl -X GET https://api.exemplo.com/users -H 'Authorization: Bearer token'" required></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn" id="import-curl-btn">Importar</button>
+                <button type="button" class="btn btn-ghost" id="preview-curl-btn">Preview</button>
+              </div>
+              <div id="import-curl-feedback" class="feedback"></div>
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ────────────────── SIMULADOR ────────────────── -->
+      <section id="section-simulator" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>Simulador</h2>
+          <p>Teste endpoints do catálogo ou envie requisições HTTP arbitrárias.</p>
+        </div>
+
+        <!-- Endpoint simulator -->
+        <div class="card">
+          <h3 class="card__title">Testar endpoint do catálogo</h3>
+          <form id="sim-ep-form">
+            <div class="form-group">
+              <label for="sim-endpoint-id">Endpoint</label>
+              <select id="sim-endpoint-id" required>
+                <option value="">Selecione um endpoint...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sim-ep-params">Parâmetros (JSON)</label>
+              <textarea id="sim-ep-params" class="json-textarea">{}</textarea>
+              <span class="field-hint">Valores para substituir {variáveis} no path, headers e body.</span>
+            </div>
+            <div class="checkbox-group form-group">
+              <input type="checkbox" id="sim-ep-dry-run" />
+              <label for="sim-ep-dry-run">Dry-run (simular sem executar)</label>
+            </div>
+            <button type="submit" class="btn" id="sim-ep-btn">Executar</button>
+            <div id="sim-ep-feedback" class="feedback"></div>
+          </form>
+          <div id="sim-ep-result" class="result-box"></div>
+        </div>
+
+        <!-- Raw request -->
+        <div class="card">
+          <h3 class="card__title">Requisição HTTP arbitrária</h3>
+          <form id="sim-raw-form">
+            <div style="display:flex;gap:12px;">
+              <div class="form-group" style="width:130px;flex-shrink:0;">
+                <label for="sim-raw-method">Método</label>
+                <select id="sim-raw-method">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label for="sim-raw-url">URL</label>
+                <input type="text" id="sim-raw-url" placeholder="https://api.exemplo.com/endpoint" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="sim-raw-auth-id">Auth Method (opcional)</label>
+              <select id="sim-raw-auth-id">
+                <option value="">Sem autenticação</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sim-raw-headers">Headers (JSON)</label>
+              <textarea id="sim-raw-headers" class="json-textarea">{}</textarea>
+            </div>
+            <div class="form-group">
+              <label for="sim-raw-qp">Query Params (JSON)</label>
+              <textarea id="sim-raw-qp" class="json-textarea">{}</textarea>
+            </div>
+            <div class="form-group">
+              <label for="sim-raw-body">Body (JSON)</label>
+              <textarea id="sim-raw-body" class="json-textarea">{}</textarea>
+            </div>
+            <button type="submit" class="btn" id="sim-raw-btn">Enviar</button>
+            <div id="sim-raw-feedback" class="feedback"></div>
+          </form>
+          <div id="sim-raw-result" class="result-box"></div>
+        </div>
+      </section>
+
     </main>
   </div>
 
-  <script type="module" src="assets/js/config.js?v=3.2.0"></script>
+  <script type="module" src="assets/js/config.js?v=4.0.0"></script>
+  <script type="module" src="assets/js/platform.js?v=4.0.0"></script>
 </body>
 </html>

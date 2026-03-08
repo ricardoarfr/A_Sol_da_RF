@@ -1,4 +1,4 @@
-import { apiFetch } from "./api.js";
+import { apiFetch } from "./api.js?v=3.1.0";
 
 const MODEL_SUGGESTIONS = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],

@@ -86,6 +86,16 @@ async def whatsapp_status() -> dict:
         return {"status": "disconnected"}
 
 
+@router.post("/whatsapp/start", dependencies=[Depends(_require_admin)])
+async def whatsapp_start() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.post(f"{settings.WHATSAPP_SERVICE_URL}/start")
+            return res.json()
+    except Exception:
+        raise HTTPException(status_code=503, detail="whatsapp-service indisponível")
+
+
 @router.get("/whatsapp/qr", dependencies=[Depends(_require_admin)])
 async def whatsapp_qr() -> dict:
     try:

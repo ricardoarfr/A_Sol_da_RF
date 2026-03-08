@@ -72,7 +72,6 @@ function closeSocket(): void {
     _sock.ev.removeAllListeners("messages.upsert");
     _sock.ev.removeAllListeners("creds.update");
     _sock.ev.removeAllListeners("contacts.upsert");
-    _sock.ev.removeAllListeners("contacts.set");
     _sock.ws.close();
   } catch {
     // ignora erros ao fechar socket já encerrado
@@ -218,24 +217,7 @@ export async function startSession(): Promise<void> {
     }
   });
 
-  // Carga inicial de contatos (bulk) — popula mapeamento lid→phone e processa fila pendente
-  _sock.ev.on("contacts.set", ({ contacts }) => {
-    let mapped = 0;
-    for (const contact of contacts) {
-      if (contact.lid && contact.id) {
-        const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
-        const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
-        if (phone && lid) {
-          _addLidMapping(lid, phone);
-          mapped++;
-        }
-      }
-    }
-    if (mapped > 0) {
-      console.info(`[session] contacts.set: ${mapped} mapeamento(s) lid→phone carregado(s)`);
-    }
-  });
-
+  // contacts.upsert: popula mapeamento lid→phone e processa fila de mensagens pendentes
   _sock.ev.on("contacts.upsert", (contacts) => {
     for (const contact of contacts) {
       if (contact.lid && contact.id) {

@@ -48,6 +48,24 @@ function _addLidMapping(lid: string, phone: string): void {
   }
 }
 
+/** Extrai mapeamentos lid→phone de um array de contatos */
+function _indexContacts(contacts: Array<{ id?: string | null; lid?: string | null }>): void {
+  let mapped = 0;
+  for (const contact of contacts) {
+    if (contact.lid && contact.id) {
+      const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
+      const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
+      if (phone && lid) {
+        _addLidMapping(lid, phone);
+        mapped++;
+      }
+    }
+  }
+  if (mapped > 0) {
+    console.info(`[session] ${mapped} mapeamento(s) lid→phone indexado(s)`);
+  }
+}
+
 export function getStatus(): SessionStatus {
   return _status;
 }
@@ -72,6 +90,7 @@ function closeSocket(): void {
     _sock.ev.removeAllListeners("messages.upsert");
     _sock.ev.removeAllListeners("creds.update");
     _sock.ev.removeAllListeners("contacts.upsert");
+    _sock.ev.removeAllListeners("messaging-history.set");
     _sock.ws.close();
   } catch {
     // ignora erros ao fechar socket já encerrado
@@ -94,10 +113,6 @@ async function clearAuthDir(): Promise<void> {
   await mkdir(AUTH_DIR, { recursive: true });
 }
 
-/**
- * Valida se o creds.json existente contém os campos mínimos esperados pelo Baileys.
- * Retorna true se válido ou ausente (sem sessão = QR será gerado).
- */
 async function validateCredsJson(): Promise<boolean> {
   const credsPath = path.join(AUTH_DIR, "creds.json");
   if (!existsSync(credsPath)) return true;
@@ -117,11 +132,11 @@ async function validateCredsJson(): Promise<boolean> {
 
 async function restoreCredsFromDb(): Promise<void> {
   const credsPath = path.join(AUTH_DIR, "creds.json");
-  if (existsSync(credsPath)) return; // já existe no disco — não sobrescreve
+  if (existsSync(credsPath)) return;
   try {
     const json = await loadCreds();
     if (!json) return;
-    JSON.parse(json); // valida antes de escrever
+    JSON.parse(json);
     await mkdir(AUTH_DIR, { recursive: true });
     await writeFile(credsPath, json, { mode: 0o600 });
     console.info("[session] Credenciais restauradas do banco de dados");
@@ -190,7 +205,6 @@ export async function startSession(): Promise<void> {
       console.warn(`[session] Conexão fechada — código: ${statusCode}`);
       _status = "disconnected";
 
-      // Logout explícito — não reconectar, aguardar novo QR via API
       if (statusCode === DisconnectReason.loggedOut) {
         _qr = null;
         _reconnectAttempt = 0;
@@ -199,7 +213,6 @@ export async function startSession(): Promise<void> {
         return;
       }
 
-      // Sessão inválida: device pairing rejeitado pelo WhatsApp
       if (statusCode === 405) {
         console.warn("[session] Sessão inválida (405) — limpando auth e reiniciando");
         _reconnectAttempt = 0;
@@ -209,7 +222,6 @@ export async function startSession(): Promise<void> {
         return;
       }
 
-      // Outros erros — reconectar com backoff exponencial
       if (!_reconnecting) {
         _reconnecting = true;
         scheduleReconnect();
@@ -217,17 +229,14 @@ export async function startSession(): Promise<void> {
     }
   });
 
-  // contacts.upsert: popula mapeamento lid→phone e processa fila de mensagens pendentes
+  // Sync inicial do histórico — contém contatos com mapeamento lid→phone
+  _sock.ev.on("messaging-history.set", ({ contacts }) => {
+    _indexContacts(contacts);
+  });
+
+  // Atualizações incrementais de contatos
   _sock.ev.on("contacts.upsert", (contacts) => {
-    for (const contact of contacts) {
-      if (contact.lid && contact.id) {
-        const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
-        const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
-        if (phone && lid) {
-          _addLidMapping(lid, phone);
-        }
-      }
-    }
+    _indexContacts(contacts);
   });
 
   _sock.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -250,7 +259,7 @@ export async function startSession(): Promise<void> {
           console.warn(`[session] @lid sem mapeamento: ${remoteJid} — enfileirando mensagem`);
         }
       } else {
-        continue; // grupo ou JID desconhecido
+        continue;
       }
 
       const text =
@@ -260,7 +269,6 @@ export async function startSession(): Promise<void> {
 
       if (!text) continue;
 
-      // @lid ainda não mapeado → enfileira para processar quando contatos chegarem
       if (lidKey && !phone) {
         const queue = _pendingLid.get(lidKey) ?? [];
         queue.push({
@@ -287,11 +295,11 @@ export async function startSession(): Promise<void> {
   });
 
   _sock.ev.on("creds.update", async () => {
-    await saveCreds(); // salva no disco (Baileys)
+    await saveCreds();
     try {
       const credsPath = path.join(AUTH_DIR, "creds.json");
       const json = await readFile(credsPath, "utf8");
-      await saveCredsToDb(json); // persiste no banco PostgreSQL
+      await saveCredsToDb(json);
     } catch (err) {
       console.error("[session] Erro ao persistir creds no banco:", err);
     }
@@ -318,7 +326,7 @@ async function forwardToPython(data: {
 function scheduleReconnect(): void {
   const maxAttempts = 15;
   const baseDelay = 5000;
-  const maxDelay = 300000; // 5 minutos
+  const maxDelay = 300000;
 
   if (_reconnectAttempt >= maxAttempts) {
     console.error("[session] Máximo de tentativas atingido. Desistindo.");

@@ -22,6 +22,9 @@ let _reconnectAttempt = 0;
 let _reconnecting = false;
 let _reconnectTimer: NodeJS.Timeout | null = null;
 
+/** Mapeia LID (sem sufixo) → número de telefone (sem sufixo) para resolver @lid JIDs */
+const _lidToPhone = new Map<string, string>();
+
 export function getStatus(): SessionStatus {
   return _status;
 }
@@ -192,6 +195,18 @@ export async function startSession(): Promise<void> {
     }
   });
 
+  _sock.ev.on("contacts.upsert", (contacts) => {
+    for (const contact of contacts) {
+      if (contact.lid && contact.id) {
+        const phone = contact.id.replace(/@s\.whatsapp\.net$/, "").replace(/@\w+$/, "");
+        const lid = contact.lid.replace(/@lid$/, "").replace(/@\w+$/, "");
+        if (phone && lid) {
+          _lidToPhone.set(lid, phone);
+        }
+      }
+    }
+  });
+
   _sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
 
@@ -199,7 +214,21 @@ export async function startSession(): Promise<void> {
       if (msg.key.remoteJid === "status@broadcast") continue;
       if (msg.key.fromMe) continue;
 
-      const phone = msg.key.remoteJid?.replace("@s.whatsapp.net", "") ?? "";
+      const remoteJid = msg.key.remoteJid ?? "";
+      let phone = "";
+
+      if (remoteJid.endsWith("@s.whatsapp.net")) {
+        phone = remoteJid.replace("@s.whatsapp.net", "");
+      } else if (remoteJid.endsWith("@lid")) {
+        const lid = remoteJid.replace(/@lid$/, "");
+        phone = _lidToPhone.get(lid) ?? "";
+        if (!phone) {
+          console.warn(`[session] @lid sem mapeamento: ${remoteJid} — sincronização de contatos ainda pendente`);
+        }
+      } else {
+        continue; // grupo ou JID desconhecido
+      }
+
       const text =
         msg.message?.conversation ||
         msg.message?.extendedTextMessage?.text ||

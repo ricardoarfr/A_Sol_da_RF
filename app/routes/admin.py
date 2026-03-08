@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor, agent_runner
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor, agent_runner, importer
 
 logger = logging.getLogger(__name__)
 
@@ -401,3 +401,58 @@ async def run_agent(agent_id: str, payload: RunAgentPayload) -> dict:
     except Exception as e:
         logger.error("[admin] run_agent error: %s", e)
         raise HTTPException(status_code=502, detail=f"Erro ao executar agente: {e}")
+
+
+# --- Import de APIs ---
+
+class ImportPostmanPayload(BaseModel):
+    system_id: str
+    collection: dict
+
+
+class ImportOpenAPIPayload(BaseModel):
+    system_id: str
+    spec: dict
+
+
+class ImportCurlPayload(BaseModel):
+    system_id: str
+    name: str = ""
+    curl: str
+
+
+@router.post("/import/postman", dependencies=[Depends(_require_admin)])
+async def import_postman(payload: ImportPostmanPayload) -> dict:
+    try:
+        return await importer.import_postman(payload.system_id, payload.collection)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error("[admin] import_postman error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Erro ao importar: {e}")
+
+
+@router.post("/import/openapi", dependencies=[Depends(_require_admin)])
+async def import_openapi(payload: ImportOpenAPIPayload) -> dict:
+    try:
+        return await importer.import_openapi(payload.system_id, payload.spec)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error("[admin] import_openapi error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Erro ao importar: {e}")
+
+
+@router.post("/import/curl", dependencies=[Depends(_require_admin)])
+async def import_curl(payload: ImportCurlPayload) -> dict:
+    try:
+        return await importer.import_curl(payload.system_id, payload.name, payload.curl)
+    except Exception as e:
+        logger.error("[admin] import_curl error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Erro ao importar: {e}")
+
+
+@router.post("/import/curl/preview", dependencies=[Depends(_require_admin)])
+async def preview_curl(payload: ImportCurlPayload) -> dict:
+    """Parseia o CURL e retorna os campos sem persistir no banco."""
+    return importer.parse_curl(payload.curl)

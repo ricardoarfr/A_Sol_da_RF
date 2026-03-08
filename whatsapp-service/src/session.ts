@@ -9,6 +9,8 @@ import { chmod } from "fs/promises";
 import { existsSync } from "fs";
 
 const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./whatsapp-auth");
+const PYTHON_WEBHOOK_URL =
+  process.env.PYTHON_WEBHOOK_URL || "http://localhost:8000/api/v1/webhook/baileys";
 
 export type SessionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
@@ -86,7 +88,51 @@ export async function startSession(): Promise<void> {
     }
   });
 
+  // Recebe mensagens e encaminha ao Python
+  _sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    if (type !== "notify") return;
+
+    for (const msg of messages) {
+      if (msg.key.remoteJid === "status@broadcast") continue;
+      if (msg.key.fromMe) continue;
+
+      const phone = msg.key.remoteJid?.replace("@s.whatsapp.net", "") ?? "";
+      const text =
+        msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        "";
+
+      if (!phone || !text) continue;
+
+      console.info(`[session] Mensagem de ${phone}: ${text.slice(0, 60)}`);
+
+      await forwardToPython({
+        phone,
+        message: text,
+        messageId: msg.key.id ?? undefined,
+        senderName: msg.pushName ?? "",
+      });
+    }
+  });
+
   _sock.ev.on("creds.update", saveCreds);
+}
+
+async function forwardToPython(data: {
+  phone: string;
+  message: string;
+  messageId?: string;
+  senderName?: string;
+}): Promise<void> {
+  try {
+    await fetch(PYTHON_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    console.error(`[session] Erro ao encaminhar mensagem ao Python: ${err}`);
+  }
 }
 
 async function reconnectWithBackoff(attempt = 0): Promise<void> {

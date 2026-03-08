@@ -41,6 +41,10 @@
           <span class="nav-icon">📱</span>
           Números autorizados
         </button>
+        <button class="nav-item" data-section="whatsapp">
+          <span class="nav-icon">🟢</span>
+          WhatsApp
+        </button>
       </nav>
 
       <button id="logout-btn" class="sidebar__logout">Sair</button>
@@ -147,6 +151,32 @@
             </div>
             <div id="phone-form-feedback" class="feedback"></div>
           </form>
+        </div>
+      </section>
+
+      <!-- Section: WhatsApp -->
+      <section id="section-whatsapp" class="section" style="display:none;">
+        <div class="section__header">
+          <h2>WhatsApp</h2>
+          <p>Gerencie a conexão do número via Baileys.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Status da conexão</h3>
+          <div class="wa-status-row">
+            <div class="wa-indicator" id="wa-indicator"></div>
+            <span id="wa-status-text">Verificando...</span>
+          </div>
+        </div>
+
+        <div class="card" id="qr-card" style="display:none;">
+          <h3 class="card__title">Escanear QR Code</h3>
+          <p class="field-hint" style="margin-bottom:16px;">
+            Abra o WhatsApp no celular → Dispositivos vinculados → Vincular dispositivo
+          </p>
+          <div class="qr-container">
+            <img id="qr-image" src="" alt="QR Code" />
+          </div>
         </div>
       </section>
 

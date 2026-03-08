@@ -1,4 +1,5 @@
 import logging
+import httpx
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -71,6 +72,32 @@ async def activate_model(model_id: str) -> dict:
         return {"status": "ok", "active_id": model_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# --- WhatsApp (proxy para whatsapp-service) ---
+
+@router.get("/whatsapp/status", dependencies=[Depends(_require_admin)])
+async def whatsapp_status() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            res = await client.get(f"{settings.WHATSAPP_SERVICE_URL}/status")
+            return res.json()
+    except Exception:
+        return {"status": "disconnected"}
+
+
+@router.get("/whatsapp/qr", dependencies=[Depends(_require_admin)])
+async def whatsapp_qr() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            res = await client.get(f"{settings.WHATSAPP_SERVICE_URL}/qr")
+            if res.status_code == 404:
+                raise HTTPException(status_code=404, detail="QR não disponível")
+            return res.json()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="whatsapp-service indisponível")
 
 
 # --- Authorized Phones ---

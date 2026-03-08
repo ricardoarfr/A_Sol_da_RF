@@ -2,6 +2,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class BaileysWebhookPayload(BaseModel):
+    phone: str
+    message: str
+    messageId: Optional[str] = None
+    senderName: Optional[str] = None
+
+
 class ZAPIMessageData(BaseModel):
     messageId: Optional[str] = None
     phone: Optional[str] = None

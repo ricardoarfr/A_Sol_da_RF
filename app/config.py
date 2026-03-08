@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     PRODUTTIVO_ACCOUNT_ID: str = "20834"
     PRODUTTIVO_SESSION_COOKIE: str = ""
 
+    # WhatsApp service (Baileys/Node.js)
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
+
     # App
     WEBHOOK_SECRET: str = ""
     LOG_LEVEL: str = "INFO"

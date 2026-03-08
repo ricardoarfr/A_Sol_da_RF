@@ -17,6 +17,8 @@ export type SessionStatus = "disconnected" | "qr" | "connecting" | "connected";
 let _status: SessionStatus = "disconnected";
 let _qr: string | null = null;
 let _sock: ReturnType<typeof makeWASocket> | null = null;
+let _reconnectAttempt = 0;
+let _reconnecting = false;
 
 export function getStatus(): SessionStatus {
   return _status;
@@ -61,6 +63,8 @@ export async function startSession(): Promise<void> {
     if (connection === "open") {
       _status = "connected";
       _qr = null;
+      _reconnectAttempt = 0;
+      _reconnecting = false;
       console.info("[session] Conectado ao WhatsApp");
 
       // Protege o arquivo de credenciais
@@ -79,11 +83,14 @@ export async function startSession(): Promise<void> {
       if (loggedOut) {
         _status = "disconnected";
         _qr = null;
+        _reconnectAttempt = 0;
+        _reconnecting = false;
         console.warn("[session] Deslogado. Escaneie o QR novamente.");
-      } else {
-        // Reconecta automaticamente com backoff
+      } else if (!_reconnecting) {
+        // Reconecta automaticamente com backoff global
         _status = "connecting";
-        await reconnectWithBackoff();
+        _reconnecting = true;
+        scheduleReconnect();
       }
     }
   });
@@ -135,28 +142,30 @@ async function forwardToPython(data: {
   }
 }
 
-async function reconnectWithBackoff(attempt = 0): Promise<void> {
-  const maxAttempts = 10;
-  const baseDelay = 2000;
-  const maxDelay = 30000;
+function scheduleReconnect(): void {
+  const maxAttempts = 15;
+  const baseDelay = 5000;
+  const maxDelay = 300000; // 5 minutos
 
-  if (attempt >= maxAttempts) {
+  if (_reconnectAttempt >= maxAttempts) {
     console.error("[session] Máximo de tentativas atingido. Desistindo.");
     _status = "disconnected";
+    _reconnecting = false;
+    _reconnectAttempt = 0;
     return;
   }
 
-  const delay = Math.min(baseDelay * Math.pow(1.8, attempt), maxDelay);
-  console.info(`[session] Reconectando em ${Math.round(delay / 1000)}s (tentativa ${attempt + 1})`);
+  const delay = Math.min(baseDelay * Math.pow(2, _reconnectAttempt), maxDelay);
+  _reconnectAttempt++;
+  console.info(`[session] Reconectando em ${Math.round(delay / 1000)}s (tentativa ${_reconnectAttempt}/${maxAttempts})`);
 
-  await sleep(delay);
-
-  try {
-    await startSession();
-  } catch (err) {
-    console.error(`[session] Erro ao reconectar: ${err}`);
-    await reconnectWithBackoff(attempt + 1);
-  }
+  setTimeout(async () => {
+    try {
+      await startSession();
+    } catch (err) {
+      console.error(`[session] Erro ao reconectar: ${err}`);
+      scheduleReconnect();
+    }
+  }, delay);
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

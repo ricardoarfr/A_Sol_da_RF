@@ -361,7 +361,7 @@ async function loadQr() {
 
 function startWaPolling() {
   loadWaStatus();
-  _waPolling = setInterval(loadWaStatus, 3000);
+  _waPolling = setInterval(loadWaStatus, 10000);
 }
 
 function stopWaPolling() {

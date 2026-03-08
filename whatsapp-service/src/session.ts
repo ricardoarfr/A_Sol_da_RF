@@ -5,7 +5,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import path from "path";
-import { chmod } from "fs/promises";
+import { chmod, mkdir, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 
 const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./whatsapp-auth");
@@ -37,7 +37,18 @@ export async function sendMessage(phone: string, text: string): Promise<void> {
   await _sock.sendMessage(jid, { text });
 }
 
+async function restoreCredsFromEnv(): Promise<void> {
+  const b64 = process.env.WHATSAPP_CREDS_B64;
+  if (!b64) return;
+  const credsPath = path.join(AUTH_DIR, "creds.json");
+  if (existsSync(credsPath)) return; // já existe — não sobrescreve
+  await mkdir(AUTH_DIR, { recursive: true });
+  await writeFile(credsPath, Buffer.from(b64, "base64").toString("utf8"), { mode: 0o600 });
+  console.info("[session] Credenciais restauradas via WHATSAPP_CREDS_B64");
+}
+
 export async function startSession(): Promise<void> {
+  await restoreCredsFromEnv();
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   _sock = makeWASocket({

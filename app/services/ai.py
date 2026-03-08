@@ -74,7 +74,7 @@ async def validate_key(provider: str, model: str, api_key: str) -> None:
 
 async def classify_message(text: str) -> dict:
     """Use active AI model to classify user intent. Returns {"action": str, "params": dict} or {"action": None} if no model active."""
-    model_cfg = get_active_model()
+    model_cfg = await get_active_model()
     if not model_cfg:
         logger.info("[classify_message] nenhum modelo ativo — usando fallback de palavras-chave")
         return {"action": None, "params": {}}

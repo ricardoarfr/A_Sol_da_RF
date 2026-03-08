@@ -1,12 +1,10 @@
-import json
 import logging
 import re
 import uuid
-from pathlib import Path
+
+from app.services.database import get_pool
 
 logger = logging.getLogger(__name__)
-
-CONFIG_PATH = Path("data/authorized_phones.json")
 
 
 def normalize_phone(phone: str) -> str:
@@ -20,66 +18,48 @@ def normalize_phone(phone: str) -> str:
     return digits
 
 
-def _load() -> list[dict]:
-    if not CONFIG_PATH.exists():
-        return []
-    try:
-        return json.loads(CONFIG_PATH.read_text())
-    except Exception as e:
-        logger.error(f"Error reading authorized phones: {e}")
-        return []
-
-
-def _save(data: list[dict]) -> None:
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(data, indent=2))
-
-
-def is_authorized(phone: str) -> bool:
-    """Return False if list is empty or phone is not in it."""
-    phones = _load()
-    if not phones:
-        return False
+async def is_authorized(phone: str) -> bool:
     normalized = normalize_phone(phone)
-    return any(p["phone"] == normalized for p in phones)
+    row = await get_pool().fetchval("SELECT id FROM authorized_phones WHERE phone = $1", normalized)
+    return row is not None
 
 
-def list_phones() -> list[dict]:
-    return _load()
+async def list_phones() -> list[dict]:
+    rows = await get_pool().fetch("SELECT id, phone, name FROM authorized_phones ORDER BY name")
+    return [dict(r) for r in rows]
 
 
-def add_phone(phone: str, name: str = "") -> dict:
-    phones = _load()
+async def add_phone(phone: str, name: str = "") -> dict:
     normalized = normalize_phone(phone)
-    if any(p["phone"] == normalized for p in phones):
+    existing = await get_pool().fetchval("SELECT id FROM authorized_phones WHERE phone = $1", normalized)
+    if existing:
         raise ValueError(f"Número {normalized} já está cadastrado.")
-    entry = {"id": str(uuid.uuid4()), "phone": normalized, "name": name}
-    phones.append(entry)
-    _save(phones)
+    entry_id = str(uuid.uuid4())
+    await get_pool().execute(
+        "INSERT INTO authorized_phones (id, phone, name) VALUES ($1, $2, $3)",
+        entry_id, normalized, name,
+    )
     logger.info(f"Phone authorized: {normalized} ({name})")
-    return entry
+    return {"id": entry_id, "phone": normalized, "name": name}
 
 
-def update_phone(phone_id: str, phone: str, name: str = "") -> dict:
-    phones = _load()
+async def update_phone(phone_id: str, phone: str, name: str = "") -> dict:
     normalized = normalize_phone(phone)
-    for p in phones:
-        if p["id"] == phone_id:
-            continue
-        if p["phone"] == normalized:
-            raise ValueError(f"Número {normalized} já está cadastrado.")
-    for p in phones:
-        if p["id"] == phone_id:
-            p["phone"] = normalized
-            p["name"] = name
-            _save(phones)
-            logger.info(f"Phone updated: {phone_id} -> {normalized}")
-            return p
-    raise ValueError("Número não encontrado.")
+    conflict = await get_pool().fetchval(
+        "SELECT id FROM authorized_phones WHERE phone = $1 AND id != $2", normalized, phone_id
+    )
+    if conflict:
+        raise ValueError(f"Número {normalized} já está cadastrado.")
+    row = await get_pool().fetchrow(
+        "UPDATE authorized_phones SET phone=$1, name=$2 WHERE id=$3 RETURNING id, phone, name",
+        normalized, name, phone_id,
+    )
+    if not row:
+        raise ValueError("Número não encontrado.")
+    logger.info(f"Phone updated: {phone_id} -> {normalized}")
+    return dict(row)
 
 
-def delete_phone(phone_id: str) -> None:
-    phones = _load()
-    phones = [p for p in phones if p["id"] != phone_id]
-    _save(phones)
+async def delete_phone(phone_id: str) -> None:
+    await get_pool().execute("DELETE FROM authorized_phones WHERE id = $1", phone_id)
     logger.info(f"Phone removed: {phone_id}")

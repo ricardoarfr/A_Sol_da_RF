@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # WhatsApp service (Baileys/Node.js)
     WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
 
+    # Database
+    DATABASE_URL: str = ""
+
     # App
     WEBHOOK_SECRET: str = ""
     LOG_LEVEL: str = "INFO"

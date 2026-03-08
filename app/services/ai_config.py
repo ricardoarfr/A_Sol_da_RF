@@ -1,93 +1,74 @@
-import json
 import logging
 import uuid
-from pathlib import Path
+
+from app.services.database import get_pool
 
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = Path("data/ai_models.json")
+
+async def list_models() -> list[dict]:
+    rows = await get_pool().fetch("SELECT id, name, provider, model, is_active FROM ai_models ORDER BY name")
+    return [dict(r) for r in rows]
 
 
-def _load() -> dict:
-    if not CONFIG_PATH.exists():
-        return {"models": [], "active_id": None}
-    try:
-        return json.loads(CONFIG_PATH.read_text())
-    except Exception as e:
-        logger.error(f"Error reading AI models config: {e}")
-        return {"models": [], "active_id": None}
+async def get_active_model() -> dict | None:
+    row = await get_pool().fetchrow(
+        "SELECT id, name, provider, model, api_key FROM ai_models WHERE is_active = TRUE LIMIT 1"
+    )
+    return dict(row) if row else None
 
 
-def _save(data: dict) -> None:
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(data, indent=2))
-
-
-def list_models() -> list[dict]:
-    data = _load()
-    return [
-        {**m, "api_key": "***" if m.get("api_key") else ""}
-        for m in data["models"]
-    ]
-
-
-def get_active_model() -> dict | None:
-    data = _load()
-    active_id = data.get("active_id")
-    for m in data["models"]:
-        if m["id"] == active_id:
-            return m
-    return None
-
-
-def add_model(name: str, provider: str, model: str, api_key: str) -> dict:
-    data = _load()
-    for m in data["models"]:
-        if m["provider"] == provider and m["model"] == model:
-            raise ValueError(f"Modelo '{provider}/{model}' já está cadastrado.")
-    entry = {"id": str(uuid.uuid4()), "name": name, "provider": provider, "model": model, "api_key": api_key}
-    data["models"].append(entry)
-    _save(data)
+async def add_model(name: str, provider: str, model: str, api_key: str) -> dict:
+    existing = await get_pool().fetchval(
+        "SELECT id FROM ai_models WHERE provider = $1 AND model = $2", provider, model
+    )
+    if existing:
+        raise ValueError(f"Modelo '{provider}/{model}' já está cadastrado.")
+    entry_id = str(uuid.uuid4())
+    await get_pool().execute(
+        "INSERT INTO ai_models (id, name, provider, model, api_key) VALUES ($1, $2, $3, $4, $5)",
+        entry_id, name, provider, model, api_key,
+    )
     logger.info(f"AI model added: {name} ({provider}/{model})")
-    return {**entry, "api_key": "***"}
+    return {"id": entry_id, "name": name, "provider": provider, "model": model, "api_key": "***", "is_active": False}
 
 
-def update_model(model_id: str, name: str, provider: str, model: str, api_key: str | None) -> dict:
-    data = _load()
-    for m in data["models"]:
-        if m["id"] == model_id:
-            continue
-        if m["provider"] == provider and m["model"] == model:
-            raise ValueError(f"Modelo '{provider}/{model}' já está cadastrado.")
+async def update_model(model_id: str, name: str, provider: str, model: str, api_key: str | None) -> dict:
+    conflict = await get_pool().fetchval(
+        "SELECT id FROM ai_models WHERE provider = $1 AND model = $2 AND id != $3", provider, model, model_id
+    )
+    if conflict:
+        raise ValueError(f"Modelo '{provider}/{model}' já está cadastrado.")
 
-    for m in data["models"]:
-        if m["id"] == model_id:
-            m["name"] = name
-            m["provider"] = provider
-            m["model"] = model
-            if api_key:
-                m["api_key"] = api_key
-            _save(data)
-            logger.info(f"AI model updated: {model_id}")
-            return {**m, "api_key": "***"}
+    if api_key:
+        row = await get_pool().fetchrow(
+            "UPDATE ai_models SET name=$1, provider=$2, model=$3, api_key=$4 WHERE id=$5 "
+            "RETURNING id, name, provider, model, is_active",
+            name, provider, model, api_key, model_id,
+        )
+    else:
+        row = await get_pool().fetchrow(
+            "UPDATE ai_models SET name=$1, provider=$2, model=$3 WHERE id=$4 "
+            "RETURNING id, name, provider, model, is_active",
+            name, provider, model, model_id,
+        )
+    if not row:
+        raise ValueError("Modelo não encontrado.")
+    logger.info(f"AI model updated: {model_id}")
+    return {**dict(row), "api_key": "***"}
 
-    raise ValueError("Modelo não encontrado.")
 
-
-def delete_model(model_id: str) -> None:
-    data = _load()
-    data["models"] = [m for m in data["models"] if m["id"] != model_id]
-    if data.get("active_id") == model_id:
-        data["active_id"] = None
-    _save(data)
+async def delete_model(model_id: str) -> None:
+    await get_pool().execute("DELETE FROM ai_models WHERE id = $1", model_id)
     logger.info(f"AI model deleted: {model_id}")
 
 
-def activate_model(model_id: str) -> None:
-    data = _load()
-    ids = [m["id"] for m in data["models"]]
-    if model_id not in ids:
+async def activate_model(model_id: str) -> None:
+    exists = await get_pool().fetchval("SELECT id FROM ai_models WHERE id = $1", model_id)
+    if not exists:
         raise ValueError("Modelo não encontrado.")
-    data["active_id"] = model_id
-    _save(data)
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("UPDATE ai_models SET is_active = FALSE")
+            await conn.execute("UPDATE ai_models SET is_active = TRUE WHERE id = $1", model_id)
     logger.info(f"AI model activated: {model_id}")

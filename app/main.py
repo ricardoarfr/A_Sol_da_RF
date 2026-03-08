@@ -1,20 +1,31 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routes.webhook import router as webhook_router
 from app.routes.admin import router as admin_router
 from app.config import settings
+from app.services import database
 
 logging.basicConfig(
     level=settings.LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.init()
+    yield
+    await database.close()
+
+
 app = FastAPI(
     title="A Sol da RF — WhatsApp Assistant",
     description="Backend para assistente WhatsApp integrado ao Produttivo",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

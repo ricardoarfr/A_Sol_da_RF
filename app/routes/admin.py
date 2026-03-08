@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai
+from app.services import ai_config, phone_auth, ai, systems as systems_svc
 
 logger = logging.getLogger(__name__)
 
@@ -149,4 +149,52 @@ async def update_phone(phone_id: str, payload: PhonePayload) -> dict:
 @router.delete("/phones/{phone_id}", dependencies=[Depends(_require_admin)])
 async def delete_phone(phone_id: str) -> dict:
     await phone_auth.delete_phone(phone_id)
+    return {"status": "ok"}
+
+
+# --- Systems ---
+
+class SystemPayload(BaseModel):
+    name: str
+    description: str = ""
+    base_url: str
+    environment: str = "production"
+    notes: str = ""
+
+
+@router.get("/systems", dependencies=[Depends(_require_admin)])
+async def list_systems() -> dict:
+    return {"systems": await systems_svc.list_systems()}
+
+
+@router.get("/systems/{system_id}", dependencies=[Depends(_require_admin)])
+async def get_system(system_id: str) -> dict:
+    system = await systems_svc.get_system(system_id)
+    if not system:
+        raise HTTPException(status_code=404, detail="Sistema não encontrado.")
+    return system
+
+
+@router.post("/systems", dependencies=[Depends(_require_admin)])
+async def create_system(payload: SystemPayload) -> dict:
+    return await systems_svc.create_system(
+        payload.name, payload.description, payload.base_url,
+        payload.environment, payload.notes,
+    )
+
+
+@router.put("/systems/{system_id}", dependencies=[Depends(_require_admin)])
+async def update_system(system_id: str, payload: SystemPayload) -> dict:
+    try:
+        return await systems_svc.update_system(
+            system_id, payload.name, payload.description, payload.base_url,
+            payload.environment, payload.notes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/systems/{system_id}", dependencies=[Depends(_require_admin)])
+async def delete_system(system_id: str) -> dict:
+    await systems_svc.delete_system(system_id)
     return {"status": "ok"}

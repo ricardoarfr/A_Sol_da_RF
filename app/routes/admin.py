@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor
 
 logger = logging.getLogger(__name__)
 
@@ -366,3 +366,20 @@ async def delete_agent(agent_id: str) -> dict:
 @router.put("/agents/{agent_id}/endpoints", dependencies=[Depends(_require_admin)])
 async def set_agent_endpoints(agent_id: str, payload: AgentEndpointsPayload) -> dict:
     return await agents_svc.set_agent_endpoints(agent_id, payload.endpoint_ids)
+
+
+# --- Executor de APIs ---
+
+class ExecutePayload(BaseModel):
+    params: dict = {}
+
+
+@router.post("/endpoints/{endpoint_id}/execute", dependencies=[Depends(_require_admin)])
+async def execute_endpoint(endpoint_id: str, payload: ExecutePayload) -> dict:
+    try:
+        return await executor.execute_endpoint(endpoint_id, payload.params)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("[admin] execute_endpoint error: %s", e)
+        raise HTTPException(status_code=502, detail=f"Erro ao executar endpoint: {e}")

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc
 
 logger = logging.getLogger(__name__)
 
@@ -305,3 +305,64 @@ async def update_endpoint(endpoint_id: str, payload: EndpointPayload) -> dict:
 async def delete_endpoint(endpoint_id: str) -> dict:
     await endpoints_svc.delete_endpoint(endpoint_id)
     return {"status": "ok"}
+
+
+# --- Agents ---
+
+class AgentPayload(BaseModel):
+    name: str
+    description: str = ""
+    type: str = "internal"
+    ai_model_id: str | None = None
+    system_prompt: str = ""
+    is_active: bool = True
+
+
+class AgentEndpointsPayload(BaseModel):
+    endpoint_ids: list[str]
+
+
+@router.get("/agents", dependencies=[Depends(_require_admin)])
+async def list_agents() -> dict:
+    return {"agents": await agents_svc.list_agents()}
+
+
+@router.get("/agents/{agent_id}", dependencies=[Depends(_require_admin)])
+async def get_agent(agent_id: str) -> dict:
+    agent = await agents_svc.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agente não encontrado.")
+    return agent
+
+
+@router.post("/agents", dependencies=[Depends(_require_admin)])
+async def create_agent(payload: AgentPayload) -> dict:
+    try:
+        return await agents_svc.create_agent(
+            payload.name, payload.description, payload.type,
+            payload.ai_model_id, payload.system_prompt, payload.is_active,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.put("/agents/{agent_id}", dependencies=[Depends(_require_admin)])
+async def update_agent(agent_id: str, payload: AgentPayload) -> dict:
+    try:
+        return await agents_svc.update_agent(
+            agent_id, payload.name, payload.description, payload.type,
+            payload.ai_model_id, payload.system_prompt, payload.is_active,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.delete("/agents/{agent_id}", dependencies=[Depends(_require_admin)])
+async def delete_agent(agent_id: str) -> dict:
+    await agents_svc.delete_agent(agent_id)
+    return {"status": "ok"}
+
+
+@router.put("/agents/{agent_id}/endpoints", dependencies=[Depends(_require_admin)])
+async def set_agent_endpoints(agent_id: str, payload: AgentEndpointsPayload) -> dict:
+    return await agents_svc.set_agent_endpoints(agent_id, payload.endpoint_ids)

@@ -31,10 +31,17 @@ CREATE TABLE IF NOT EXISTS whatsapp_session (
 
 async def init() -> None:
     global _pool
-    _pool = await asyncpg.create_pool(settings.DATABASE_URL, min_size=1, max_size=5)
-    async with _pool.acquire() as conn:
-        await conn.execute(_SCHEMA)
-    logger.info("Banco de dados inicializado")
+    if not settings.DATABASE_URL:
+        logger.warning("DATABASE_URL não configurado — banco de dados desabilitado")
+        return
+    try:
+        _pool = await asyncpg.create_pool(settings.DATABASE_URL, min_size=1, max_size=5)
+        async with _pool.acquire() as conn:
+            await conn.execute(_SCHEMA)
+        logger.info("Banco de dados inicializado")
+    except Exception as e:
+        logger.error(f"Falha ao conectar ao banco de dados: {e} — continuando sem banco")
+        _pool = None
 
 
 async def close() -> None:
@@ -46,5 +53,5 @@ async def close() -> None:
 
 def get_pool() -> asyncpg.Pool:
     if _pool is None:
-        raise RuntimeError("Pool não inicializado — chame database.init() no startup")
+        raise RuntimeError("Banco de dados não disponível — configure DATABASE_URL")
     return _pool

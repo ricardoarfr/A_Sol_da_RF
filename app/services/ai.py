@@ -76,22 +76,34 @@ async def classify_message(text: str) -> dict:
     """Use active AI model to classify user intent. Returns {"action": str, "params": dict} or {"action": None} if no model active."""
     model_cfg = get_active_model()
     if not model_cfg:
+        logger.info("[classify_message] nenhum modelo ativo — usando fallback de palavras-chave")
         return {"action": None, "params": {}}
 
     provider = model_cfg.get("provider", "").lower()
+    model_name = model_cfg.get("model", "?")
+    logger.info(f"[classify_message] chamando provider={provider} model={model_name}")
 
     try:
         if provider in _OPENAI_COMPAT_PROVIDERS:
-            return await _call_openai_compat(text, model_cfg)
+            result = await _call_openai_compat(text, model_cfg)
         elif provider == "anthropic":
-            return await _call_anthropic(text, model_cfg)
+            result = await _call_anthropic(text, model_cfg)
         elif provider == "google":
-            return await _call_google(text, model_cfg)
+            result = await _call_google(text, model_cfg)
         else:
-            logger.warning(f"Unknown AI provider: {provider}")
+            logger.warning(f"[classify_message] provider desconhecido: {provider}")
             return {"action": None, "params": {}}
+        logger.info(f"[classify_message] resultado: {result}")
+        return result
+    except httpx.HTTPStatusError as e:
+        try:
+            body = e.response.json()
+        except Exception:
+            body = e.response.text
+        logger.error(f"[classify_message] HTTP {e.response.status_code} de {provider}/{model_name}: {body!r}")
+        return {"action": None, "params": {}}
     except Exception as e:
-        logger.error(f"AI classification failed: {e}")
+        logger.error(f"[classify_message] falha inesperada ({provider}/{model_name}): {e}")
         return {"action": None, "params": {}}
 
 

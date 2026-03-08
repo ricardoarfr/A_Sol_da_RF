@@ -15,6 +15,7 @@ _api_key_header = APIKeyHeader(name="X-Admin-Token", auto_error=False)
 
 def _require_admin(token: str = Depends(_api_key_header)) -> None:
     if not token or token != settings.ADMIN_TOKEN:
+        logger.warning("[admin] acesso negado — token ausente ou inválido (recebido: %r)", token[:6] + "…" if token else "vazio")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 

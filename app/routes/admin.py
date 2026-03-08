@@ -368,10 +368,19 @@ async def set_agent_endpoints(agent_id: str, payload: AgentEndpointsPayload) -> 
     return await agents_svc.set_agent_endpoints(agent_id, payload.endpoint_ids)
 
 
-# --- Executor de APIs ---
+# --- Executor e Simulador de APIs ---
 
 class ExecutePayload(BaseModel):
     params: dict = {}
+
+
+class RawRequestPayload(BaseModel):
+    method: str = "GET"
+    url: str
+    headers: dict = {}
+    query_params: dict = {}
+    body: dict | None = None
+    auth_method_id: str | None = None
 
 
 @router.post("/endpoints/{endpoint_id}/execute", dependencies=[Depends(_require_admin)])
@@ -383,6 +392,31 @@ async def execute_endpoint(endpoint_id: str, payload: ExecutePayload) -> dict:
     except Exception as e:
         logger.error("[admin] execute_endpoint error: %s", e)
         raise HTTPException(status_code=502, detail=f"Erro ao executar endpoint: {e}")
+
+
+@router.post("/endpoints/{endpoint_id}/simulate", dependencies=[Depends(_require_admin)])
+async def simulate_endpoint(endpoint_id: str, payload: ExecutePayload) -> dict:
+    """Dry-run: retorna a requisição resolvida sem executar."""
+    try:
+        return await executor.simulate_endpoint(endpoint_id, payload.params)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("[admin] simulate_endpoint error: %s", e)
+        raise HTTPException(status_code=502, detail=f"Erro ao simular: {e}")
+
+
+@router.post("/simulate/raw", dependencies=[Depends(_require_admin)])
+async def simulate_raw(payload: RawRequestPayload) -> dict:
+    """Executa uma requisição HTTP arbitrária (sem precisar salvar no catálogo)."""
+    try:
+        return await executor.execute_raw(
+            payload.method, payload.url, payload.headers,
+            payload.query_params, payload.body, payload.auth_method_id,
+        )
+    except Exception as e:
+        logger.error("[admin] simulate_raw error: %s", e)
+        raise HTTPException(status_code=502, detail=f"Erro ao executar: {e}")
 
 
 # --- Motor de Agentes ---

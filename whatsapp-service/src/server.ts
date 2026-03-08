@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import QRCode from "qrcode";
-import { startSession, getStatus, getQr, sendMessage } from "./session";
+import { startSession, resetSession, getStatus, getQr, sendMessage } from "./session";
 
 const app = express();
 app.use(express.json());
@@ -32,6 +32,12 @@ app.get("/qr", async (_req: Request, res: Response) => {
   }
   const dataUrl = await QRCode.toDataURL(qr, { scale: 6, margin: 4 });
   res.json({ qrDataUrl: dataUrl });
+});
+
+// Reseta sessão: apaga credenciais e força novo QR
+app.post("/reset", (_req: Request, res: Response) => {
+  resetSession().catch((err) => console.error("[server] Erro ao resetar sessão:", err));
+  res.json({ status: "resetting" });
 });
 
 // Envia mensagem de texto

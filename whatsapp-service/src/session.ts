@@ -8,7 +8,14 @@ import { Boom } from "@hapi/boom";
 import path from "path";
 import { chmod, mkdir, rm, writeFile, readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { loadCreds, saveCreds as saveCredsToDb } from "./db";
+import {
+  initDb,
+  loadCreds,
+  saveCreds as saveCredsToDb,
+  deleteCreds,
+  loadLidMappings,
+  saveLidMapping,
+} from "./db";
 
 const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./whatsapp-auth");
 const PYTHON_WEBHOOK_URL =
@@ -32,10 +39,11 @@ const _pendingLid = new Map<
   Array<{ message: string; messageId?: string; senderName: string }>
 >();
 
-/** Registra mapeamento lid→phone e processa mensagens pendentes desse lid */
+/** Registra mapeamento lid→phone, persiste no banco e processa mensagens pendentes */
 function _addLidMapping(lid: string, phone: string): void {
   if (!lid || !phone) return;
   _lidToPhone.set(lid, phone);
+  saveLidMapping(lid, phone).catch(() => {});
   const pending = _pendingLid.get(lid);
   if (pending?.length) {
     _pendingLid.delete(lid);
@@ -145,9 +153,29 @@ async function restoreCredsFromDb(): Promise<void> {
   }
 }
 
+export async function resetSession(): Promise<void> {
+  closeSocket();
+  cancelReconnect();
+  await deleteCreds().catch(() => {});
+  await clearAuthDir();
+  _status = "disconnected";
+  _lidToPhone.clear();
+  _pendingLid.clear();
+  console.info("[session] Sessão resetada — aguardando novo scan do QR");
+  await startSession();
+}
+
 export async function startSession(): Promise<void> {
   closeSocket();
   cancelReconnect();
+
+  // Garante tabela lid_map e restaura mapeamentos persistidos
+  await initDb().catch(() => {});
+  const stored = await loadLidMappings();
+  stored.forEach((phone, lid) => _lidToPhone.set(lid, phone));
+  if (stored.size > 0) {
+    console.info(`[session] ${stored.size} mapeamento(s) lid→phone restaurado(s) do banco`);
+  }
 
   await restoreCredsFromDb();
 
@@ -167,8 +195,6 @@ export async function startSession(): Promise<void> {
     auth: state,
     printQRInTerminal: false,
     browser: ["A Sol da RF", "Chrome", "120.0.0"],
-    // syncFullHistory: true garante que messaging-history.set dispare com contatos
-    // incluindo o mapeamento lid→phone necessário para mensagens @lid
     syncFullHistory: true,
     markOnlineOnConnect: false,
   });

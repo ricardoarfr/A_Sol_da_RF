@@ -29,3 +29,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# SSH keys (nunca commitar chaves privadas)
+.ssh/

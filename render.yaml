@@ -11,7 +11,7 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: a-sol-da-rf-db
-          property: connectionString
+          property: internalConnectionString
       - key: PRODUTTIVO_SESSION_COOKIE
         sync: false
       - key: PRODUTTIVO_ACCOUNT_ID
@@ -37,7 +37,7 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: a-sol-da-rf-db
-          property: connectionString
+          property: internalConnectionString
       - key: PYTHON_WEBHOOK_URL
         sync: false
       - key: AUTH_DIR

@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Request, HTTPException
 from app.models.webhook import ZAPIWebhookPayload, BaileysWebhookPayload
 from app.services.zapi import send_text_message
-from app.services import produttivo, phone_auth, ai
+from app.services import produttivo, phone_auth, ai, orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def zapi_webhook(request: Request):
         await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
         return {"status": "unauthorized"}
 
-    reply = await handle_message(phone, text)
+    reply = await orchestrator.dispatch(phone, text)
 
     await send_text_message(phone, reply)
     return {"status": "ok"}
@@ -63,12 +63,12 @@ async def baileys_webhook(request: Request):
         await send_text_message(phone, "Você não tem acesso ao assistente, fale com Ricardo.")
         return {"status": "unauthorized"}
 
-    reply = await handle_message(phone, text)
+    reply = await orchestrator.dispatch(phone, text)
     await send_text_message(phone, reply)
     return {"status": "ok"}
 
 
-# --- Intent detection: AI first, keyword fallback ---
+# --- Legacy handlers (mantidos para referência, não são mais chamados) ---
 
 async def _detect_intent(text: str) -> tuple[str, dict]:
     """Returns (intent, params). Uses AI if available, falls back to keywords."""
@@ -116,11 +116,8 @@ def _resolve_date(date_param: str) -> str:
         return str(today - timedelta(days=1))
     if date_param == "today":
         return str(today)
-    # Allow ISO date strings passed directly
     return date_param or str(today)
 
-
-# --- Response formatters ---
 
 def _format_activities(activities: list, date_str: str) -> str:
     if not activities:
@@ -163,8 +160,6 @@ def _format_technicians(technicians: list) -> str:
 
     return "\n".join(lines)
 
-
-# --- Main handler ---
 
 async def handle_message(phone: str, text: str) -> str:
     intent, params = await _detect_intent(text)

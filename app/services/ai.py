@@ -44,14 +44,31 @@ async def validate_key(provider: str, model: str, api_key: str) -> None:
             raise ValueError(f"Provedor desconhecido: {provider}")
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
+        try:
+            body = e.response.json()
+        except Exception:
+            body = e.response.text
+        logger.error(f"[validate_key] provider={provider} status={status} body={body!r}")
         if status in (401, 403):
             raise ValueError("Chave de API inválida ou sem permissão.")
         if status == 429:
             raise ValueError("Limite de requisições atingido. Aguarde e tente novamente.")
-        raise ValueError(f"Erro ao validar chave ({status}). Verifique o provedor e o modelo.")
+        # Extract a human-readable detail from the response body
+        detail = None
+        if isinstance(body, dict):
+            detail = (
+                body.get("error", {}).get("message")
+                or body.get("error")
+                or body.get("message")
+                or body.get("detail")
+            )
+            if not isinstance(detail, str):
+                detail = str(detail)
+        raise ValueError(f"Erro {status} ao validar chave: {detail or body}")
     except ValueError:
         raise
     except Exception as e:
+        logger.error(f"[validate_key] provider={provider} unexpected error: {e}")
         raise ValueError(f"Não foi possível validar a chave: {e}")
 
 

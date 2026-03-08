@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RF Admin</title>
-  <link rel="stylesheet" href="assets/css/main.css?v=3.1.0" />
+  <link rel="stylesheet" href="assets/css/main.css?v=3.2.0" />
 </head>
 <body>
 
   <!-- Auth screen -->
   <div id="auth-screen" class="auth-screen">
     <div class="auth-card">
-      <h1>RF Admin <span class="badge">v3.0</span></h1>
+      <h1>RF Admin <span class="badge">v3.2</span></h1>
       <p class="auth-subtitle">Painel de configuração do assistente WhatsApp</p>
       <form id="token-form">
         <div class="form-group">
@@ -30,7 +30,7 @@
     <aside class="sidebar">
       <div class="sidebar__logo">
         <span class="sidebar__logo-text">RF Admin</span>
-        <span class="badge">v3.0</span>
+        <span class="badge">v3.2</span>
       </div>
 
       <nav class="sidebar__nav">
@@ -57,19 +57,7 @@
       <section id="section-models" class="section">
         <div class="section__header">
           <h2>Modelos de IA</h2>
-          <p>Gerencie os modelos disponíveis e defina qual está em uso.</p>
-        </div>
-
-        <div class="card">
-          <h3 class="card__title">Modelo em uso</h3>
-          <div class="form-group">
-            <label for="active-select">Selecione o modelo ativo</label>
-            <select id="active-select">
-              <option value="">— Nenhum modelo cadastrado —</option>
-            </select>
-          </div>
-          <button class="btn btn-secondary" id="activate-btn">Definir como ativo</button>
-          <div id="active-feedback" class="feedback"></div>
+          <p>Cadastre modelos e clique em <strong>Ativar</strong> para definir qual está em uso.</p>
         </div>
 
         <div class="card">
@@ -100,12 +88,17 @@
             </div>
             <div class="form-group">
               <label for="model-id-input">Modelo</label>
-              <input type="text" id="model-id-input" list="model-suggestions" placeholder="Ex: gemini-1.5-flash" autocomplete="off" required />
+              <input type="text" id="model-id-input" list="model-suggestions" placeholder="Selecione o provedor acima" autocomplete="off" required />
               <datalist id="model-suggestions"></datalist>
             </div>
             <div class="form-group">
               <label for="api-key">Chave de API</label>
-              <input type="password" id="api-key" placeholder="Insira a chave de API" autocomplete="off" />
+              <div class="input-with-action">
+                <input type="password" id="api-key" placeholder="Insira a chave de API" autocomplete="off" />
+                <button type="button" class="btn-icon--eye" id="toggle-key-btn" title="Mostrar/ocultar chave" tabindex="-1">
+                  <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
               <span class="field-hint" id="key-hint" style="display:none;">Deixe em branco para manter a chave atual</span>
             </div>
             <hr class="divider" />
@@ -188,6 +181,6 @@
     </main>
   </div>
 
-  <script type="module" src="assets/js/config.js?v=3.1.0"></script>
+  <script type="module" src="assets/js/config.js?v=3.2.0"></script>
 </body>
 </html>

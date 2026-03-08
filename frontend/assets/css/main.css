@@ -302,6 +302,47 @@ select option { background: var(--surface); }
   border-color: rgba(239, 68, 68, 0.4);
 }
 
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: var(--success);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s;
+  width: auto;
+  margin-top: 0;
+}
+.btn-sm:hover { background: rgba(34, 197, 94, 0.12); }
+
+.input-with-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-action input {
+  padding-right: 40px;
+}
+.btn-icon--eye {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.btn-icon--eye:hover { color: var(--text); }
+
 /* =====================
    BADGES
    ===================== */
@@ -398,6 +439,13 @@ select option { background: var(--surface); }
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--error);
+  display: block;
+}
+
+.feedback.info {
+  background: rgba(79, 124, 255, 0.1);
+  border: 1px solid rgba(79, 124, 255, 0.3);
+  color: var(--primary);
   display: block;
 }
 

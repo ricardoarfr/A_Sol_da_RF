@@ -54,6 +54,11 @@ async def add_model(payload: AIModelPayload) -> dict:
 
 @router.put("/ai-models/{model_id}", dependencies=[Depends(_require_admin)])
 async def update_model(model_id: str, payload: AIModelUpdatePayload) -> dict:
+    if payload.api_key:
+        try:
+            await ai.validate_key(payload.provider, payload.model, payload.api_key)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
     try:
         return ai_config.update_model(model_id, payload.name, payload.provider, payload.model, payload.api_key or None)
     except ValueError as e:

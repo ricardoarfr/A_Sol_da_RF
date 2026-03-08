@@ -8,19 +8,29 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: ZAPI_INSTANCE_ID
-        sync: false
-      - key: ZAPI_TOKEN
-        sync: false
-      - key: ZAPI_CLIENT_TOKEN
-        sync: false
       - key: PRODUTTIVO_SESSION_COOKIE
         sync: false
       - key: PRODUTTIVO_ACCOUNT_ID
         value: "20834"
       - key: PRODUTTIVO_BASE_URL
         value: https://app.produttivo.com.br
-      - key: WEBHOOK_SECRET
-        generateValue: true
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: WHATSAPP_SERVICE_URL
+        sync: false
       - key: LOG_LEVEL
         value: INFO
+
+  - type: web
+    name: a-sol-da-rf-whatsapp
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: cd whatsapp-service && npm install && npm run build
+    startCommand: node whatsapp-service/dist/server.js
+    envVars:
+      - key: PYTHON_WEBHOOK_URL
+        sync: false
+      - key: AUTH_DIR
+        value: ./whatsapp-auth

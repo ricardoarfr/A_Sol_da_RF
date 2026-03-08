@@ -167,7 +167,9 @@ export async function startSession(): Promise<void> {
     auth: state,
     printQRInTerminal: false,
     browser: ["A Sol da RF", "Chrome", "120.0.0"],
-    syncFullHistory: false,
+    // syncFullHistory: true garante que messaging-history.set dispare com contatos
+    // incluindo o mapeamento lid→phone necessário para mensagens @lid
+    syncFullHistory: true,
     markOnlineOnConnect: false,
   });
 
@@ -231,6 +233,7 @@ export async function startSession(): Promise<void> {
 
   // Sync inicial do histórico — contém contatos com mapeamento lid→phone
   _sock.ev.on("messaging-history.set", ({ contacts }) => {
+    console.info(`[session] messaging-history.set: ${contacts.length} contato(s) recebido(s)`);
     _indexContacts(contacts);
   });
 

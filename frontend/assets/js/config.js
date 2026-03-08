@@ -303,9 +303,12 @@ function updateWaUI(status) {
   const indicator = document.getElementById("wa-indicator");
   const statusText = document.getElementById("wa-status-text");
   const qrCard = document.getElementById("qr-card");
+  const connectBtn = document.getElementById("wa-connect-btn");
 
   indicator.style.background = WA_STATUS_COLORS[status] || "var(--text-muted)";
   statusText.textContent = WA_STATUS_LABELS[status] || status;
+
+  connectBtn.style.display = status === "disconnected" ? "inline-flex" : "none";
 
   if (status === "qr") {
     qrCard.style.display = "block";
@@ -315,6 +318,21 @@ function updateWaUI(status) {
     document.getElementById("qr-image").src = "";
   }
 }
+
+document.getElementById("wa-connect-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("wa-connect-btn");
+  btn.disabled = true;
+  btn.textContent = "Conectando...";
+  try {
+    await apiFetch("/admin/whatsapp/start", { method: "POST" });
+  } catch (e) {
+    document.getElementById("wa-connect-feedback").textContent = e.message;
+    document.getElementById("wa-connect-feedback").className = "feedback error";
+    setTimeout(() => { document.getElementById("wa-connect-feedback").className = "feedback"; }, 4000);
+    btn.disabled = false;
+    btn.textContent = "Conectar";
+  }
+});
 
 async function loadWaStatus() {
   try {

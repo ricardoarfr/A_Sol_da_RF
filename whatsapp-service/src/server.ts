@@ -12,6 +12,17 @@ app.get("/status", (_req: Request, res: Response) => {
   res.json({ status: getStatus() });
 });
 
+// Inicia a sessão Baileys sob demanda
+app.post("/start", async (_req: Request, res: Response) => {
+  const current = getStatus();
+  if (current === "connected" || current === "connecting" || current === "qr") {
+    res.json({ status: current });
+    return;
+  }
+  startSession().catch((err) => console.error("[server] Erro ao iniciar sessão:", err));
+  res.json({ status: "starting" });
+});
+
 // Retorna o QR atual como base64 PNG
 app.get("/qr", async (_req: Request, res: Response) => {
   const qr = getQr();
@@ -38,8 +49,7 @@ app.post("/send", async (req: Request, res: Response) => {
   }
 });
 
-// Inicia o servidor e a sessão Baileys
-app.listen(PORT, async () => {
+// Inicia o servidor — sessão Baileys iniciada sob demanda via POST /start
+app.listen(PORT, () => {
   console.info(`[server] whatsapp-service rodando na porta ${PORT}`);
-  await startSession();
 });

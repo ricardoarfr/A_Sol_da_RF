@@ -2,6 +2,7 @@ import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   ConnectionState,
+  fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import path from "path";
@@ -117,7 +118,11 @@ export async function startSession(): Promise<void> {
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
+  const { version } = await fetchLatestBaileysVersion();
+  console.info("[session] usando versão WA:", version);
+
   _sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     browser: ["A Sol da RF", "Chrome", "120.0.0"],

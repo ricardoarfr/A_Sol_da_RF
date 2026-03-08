@@ -1,4 +1,4 @@
-import { apiFetch } from "./api.js?v=3.1.0";
+import { apiFetch } from "./api.js?v=3.2.0";
 
 const MODEL_SUGGESTIONS = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
@@ -56,35 +56,28 @@ function updateModelSuggestions(provider) {
 
 function renderModels() {
   const list = document.getElementById("models-list");
-  const select = document.getElementById("active-select");
-
-  select.innerHTML = '<option value="">— Selecione um modelo —</option>';
-  modelsState.models.forEach((m) => {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    opt.textContent = `${m.name} (${m.provider} / ${m.model})`;
-    if (m.id === modelsState.active_id) opt.selected = true;
-    select.appendChild(opt);
-  });
 
   if (modelsState.models.length === 0) {
     list.innerHTML = '<p class="empty-state">Nenhum modelo cadastrado ainda.</p>';
     return;
   }
 
-  list.innerHTML = modelsState.models.map((m) => `
-    <div class="list-item ${m.id === modelsState.active_id ? "list-item--active" : ""}">
-      <div class="list-item__info">
-        <span class="list-item__name">${m.name}</span>
-        ${m.id === modelsState.active_id ? '<span class="badge badge--active">Ativo</span>' : ""}
-        <span class="list-item__meta">${m.provider} / ${m.model}</span>
+  list.innerHTML = modelsState.models.map((m) => {
+    const active = m.id === modelsState.active_id;
+    return `
+      <div class="list-item ${active ? "list-item--active" : ""}">
+        <div class="list-item__info">
+          <span class="list-item__name">${m.name}${active ? ' <span class="badge badge--active">Ativo</span>' : ""}</span>
+          <span class="list-item__meta">${m.provider} / ${m.model}</span>
+        </div>
+        <div class="list-item__actions">
+          ${!active ? `<button class="btn-sm" onclick="activateModel('${m.id}')">Ativar</button>` : ""}
+          <button class="btn-icon" title="Editar" onclick="editModel('${m.id}')">✏️</button>
+          <button class="btn-icon btn-icon--danger" title="Remover" onclick="removeModel('${m.id}', '${m.name}')">🗑️</button>
+        </div>
       </div>
-      <div class="list-item__actions">
-        <button class="btn-icon" title="Editar" onclick="editModel('${m.id}')">✏️</button>
-        <button class="btn-icon btn-icon--danger" title="Remover" onclick="removeModel('${m.id}', '${m.name}')">🗑️</button>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 async function loadModels() {
@@ -92,40 +85,51 @@ async function loadModels() {
     modelsState = await apiFetch("/admin/ai-models");
     renderModels();
   } catch (e) {
-    showFeedback("active-feedback", e.message, "error");
+    showFeedback("model-form-feedback", e.message, "error");
   }
 }
 
-document.getElementById("activate-btn").addEventListener("click", async () => {
-  const id = document.getElementById("active-select").value;
-  if (!id) return;
+window.activateModel = async function (id) {
   try {
     await apiFetch(`/admin/ai-models/${id}/activate`, { method: "PUT" });
     modelsState.active_id = id;
     renderModels();
-    showFeedback("active-feedback", "Modelo ativo atualizado!", "success");
+    showFeedback("model-form-feedback", "Modelo ativo atualizado!", "success");
   } catch (e) {
-    showFeedback("active-feedback", e.message, "error");
+    showFeedback("model-form-feedback", e.message, "error");
   }
-});
+};
 
 document.getElementById("provider").addEventListener("change", (e) => {
+  const suggestions = MODEL_SUGGESTIONS[e.target.value] || [];
   updateModelSuggestions(e.target.value);
-  document.getElementById("model-id-input").value = "";
+  document.getElementById("model-id-input").value = suggestions[0] || "";
+});
+
+document.getElementById("toggle-key-btn").addEventListener("click", () => {
+  const input = document.getElementById("api-key");
+  const icon = document.getElementById("eye-icon");
+  const isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+  icon.style.opacity = isPassword ? "0.4" : "1";
 });
 
 document.getElementById("model-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = document.getElementById("save-model-btn");
-  btn.disabled = true;
-
   const id = document.getElementById("edit-model-id").value;
+  const originalText = btn.textContent;
+
   const payload = {
     name: document.getElementById("model-name").value.trim(),
     provider: document.getElementById("provider").value,
     model: document.getElementById("model-id-input").value.trim(),
     api_key: document.getElementById("api-key").value.trim(),
   };
+
+  btn.disabled = true;
+  btn.textContent = payload.api_key ? "Validando chave..." : "Salvando...";
+  showFeedback("model-form-feedback", payload.api_key ? "Validando chave de API..." : "Salvando...", "info");
 
   try {
     if (id) {
@@ -141,6 +145,7 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
     showFeedback("model-form-feedback", e.message, "error");
   } finally {
     btn.disabled = false;
+    btn.textContent = originalText;
   }
 });
 
@@ -153,6 +158,8 @@ function resetModelForm() {
   document.getElementById("save-model-btn").textContent = "Cadastrar";
   document.getElementById("cancel-model-btn").style.display = "none";
   document.getElementById("key-hint").style.display = "none";
+  document.getElementById("api-key").type = "password";
+  document.getElementById("eye-icon").style.opacity = "1";
   document.getElementById("api-key").placeholder = "Insira a chave de API";
 }
 
@@ -165,7 +172,7 @@ window.editModel = function (id) {
   updateModelSuggestions(m.provider);
   document.getElementById("model-id-input").value = m.model;
   document.getElementById("api-key").value = "";
-  document.getElementById("api-key").placeholder = "Deixe em branco para manter a chave atual";
+  document.getElementById("api-key").placeholder = "Nova chave (deixe vazio para manter)";
   document.getElementById("key-hint").style.display = "block";
   document.getElementById("model-form-title").textContent = "Editar modelo";
   document.getElementById("save-model-btn").textContent = "Salvar alterações";

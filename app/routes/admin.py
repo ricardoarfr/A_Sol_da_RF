@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor, agent_runner
 
 logger = logging.getLogger(__name__)
 
@@ -383,3 +383,21 @@ async def execute_endpoint(endpoint_id: str, payload: ExecutePayload) -> dict:
     except Exception as e:
         logger.error("[admin] execute_endpoint error: %s", e)
         raise HTTPException(status_code=502, detail=f"Erro ao executar endpoint: {e}")
+
+
+# --- Motor de Agentes ---
+
+class RunAgentPayload(BaseModel):
+    message: str
+
+
+@router.post("/agents/{agent_id}/run", dependencies=[Depends(_require_admin)])
+async def run_agent(agent_id: str, payload: RunAgentPayload) -> dict:
+    try:
+        response = await agent_runner.run_agent(agent_id, payload.message)
+        return {"response": response}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("[admin] run_agent error: %s", e)
+        raise HTTPException(status_code=502, detail=f"Erro ao executar agente: {e}")

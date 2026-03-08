@@ -33,6 +33,16 @@ let _reconnectTimer: NodeJS.Timeout | null = null;
 /** Mapeia LID (sem sufixo) → número de telefone (sem sufixo) para resolver @lid JIDs */
 const _lidToPhone = new Map<string, string>();
 
+/** IDs de mensagens já processadas — evita dupla entrega em retries do WhatsApp */
+const _processedIds = new Set<string>();
+function _markProcessed(id: string): boolean {
+  if (_processedIds.has(id)) return true; // já processado
+  _processedIds.add(id);
+  // remove após 5 minutos para não crescer indefinidamente
+  setTimeout(() => _processedIds.delete(id), 5 * 60 * 1000);
+  return false;
+}
+
 /** Fila de mensagens aguardando resolução de @lid */
 const _pendingLid = new Map<
   string,
@@ -165,6 +175,7 @@ export async function resetSession(): Promise<void> {
   _status = "disconnected";
   _lidToPhone.clear();
   _pendingLid.clear();
+  _processedIds.clear();
   console.info("[session] Sessão resetada — aguardando novo scan do QR");
   await startSession();
 }
@@ -192,7 +203,7 @@ export async function startSession(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   const { version } = await fetchLatestBaileysVersion();
-  console.info("[session] usado versão WA:", version);
+  console.info("[session] usando versão WA:", version);
 
   _sock = makeWASocket({
     version,
@@ -278,6 +289,13 @@ export async function startSession(): Promise<void> {
     for (const msg of messages) {
       if (msg.key.remoteJid === "status@broadcast") continue;
       if (msg.key.fromMe) continue;
+
+      // Ignora duplicatas (WhatsApp retenta mensagens que falharam na decriptação)
+      const msgId = msg.key.id ?? "";
+      if (msgId && _markProcessed(msgId)) {
+        console.info(`[session] Mensagem duplicada ignorada: ${msgId}`);
+        continue;
+      }
 
       const remoteJid = msg.key.remoteJid ?? "";
       let phone = "";

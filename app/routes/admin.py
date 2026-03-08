@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc
 
 logger = logging.getLogger(__name__)
 
@@ -246,4 +246,62 @@ async def update_auth_method(method_id: str, payload: AuthMethodPayload) -> dict
 @router.delete("/auth-methods/{method_id}", dependencies=[Depends(_require_admin)])
 async def delete_auth_method(method_id: str) -> dict:
     await auth_methods_svc.delete_auth_method(method_id)
+    return {"status": "ok"}
+
+
+# --- Endpoints ---
+
+class EndpointPayload(BaseModel):
+    system_id: str
+    auth_method_id: str | None = None
+    name: str
+    description: str = ""
+    method: str = "GET"
+    path: str
+    headers: str = "{}"
+    query_params: str = "{}"
+    body_template: str = "{}"
+    response_example: str = ""
+
+
+@router.get("/endpoints", dependencies=[Depends(_require_admin)])
+async def list_endpoints(system_id: str | None = None) -> dict:
+    return {"endpoints": await endpoints_svc.list_endpoints(system_id)}
+
+
+@router.get("/endpoints/{endpoint_id}", dependencies=[Depends(_require_admin)])
+async def get_endpoint(endpoint_id: str) -> dict:
+    ep = await endpoints_svc.get_endpoint(endpoint_id)
+    if not ep:
+        raise HTTPException(status_code=404, detail="Endpoint não encontrado.")
+    return ep
+
+
+@router.post("/endpoints", dependencies=[Depends(_require_admin)])
+async def create_endpoint(payload: EndpointPayload) -> dict:
+    try:
+        return await endpoints_svc.create_endpoint(
+            payload.system_id, payload.auth_method_id, payload.name, payload.description,
+            payload.method, payload.path, payload.headers, payload.query_params,
+            payload.body_template, payload.response_example,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.put("/endpoints/{endpoint_id}", dependencies=[Depends(_require_admin)])
+async def update_endpoint(endpoint_id: str, payload: EndpointPayload) -> dict:
+    try:
+        return await endpoints_svc.update_endpoint(
+            endpoint_id, payload.system_id, payload.auth_method_id, payload.name,
+            payload.description, payload.method, payload.path, payload.headers,
+            payload.query_params, payload.body_template, payload.response_example,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.delete("/endpoints/{endpoint_id}", dependencies=[Depends(_require_admin)])
+async def delete_endpoint(endpoint_id: str) -> dict:
+    await endpoints_svc.delete_endpoint(endpoint_id)
     return {"status": "ok"}

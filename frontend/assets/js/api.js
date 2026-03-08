@@ -7,6 +7,7 @@ function getToken() {
 async function apiFetch(path, options = {}) {
   const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
+    signal: AbortSignal.timeout(10000),
     ...options,
     headers: {
       "Content-Type": "application/json",

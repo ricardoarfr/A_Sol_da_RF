@@ -1,4 +1,4 @@
-import { apiFetch } from "./api.js";
+import { apiFetch } from "./api.js?v=3.1.0";
 
 const MODEL_SUGGESTIONS = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
@@ -375,17 +375,33 @@ function showApp() {
   loadPhones();
 }
 
-function init() {
-  if (sessionStorage.getItem("admin_token")) {
+async function tryLogin(token) {
+  sessionStorage.setItem("admin_token", token);
+  try {
+    await apiFetch("/admin/ai-models");
     showApp();
+  } catch (e) {
+    sessionStorage.removeItem("admin_token");
+    const hint = document.getElementById("login-error");
+    hint.textContent = "Token inválido.";
+    hint.style.display = "block";
+  }
+}
+
+function init() {
+  const stored = sessionStorage.getItem("admin_token");
+  if (stored) {
+    tryLogin(stored);
   }
 
-  document.getElementById("token-form").addEventListener("submit", (e) => {
+  document.getElementById("token-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector("button[type=submit]");
     const token = document.getElementById("admin-token").value.trim();
     if (!token) return;
-    sessionStorage.setItem("admin_token", token);
-    showApp();
+    btn.disabled = true;
+    await tryLogin(token);
+    btn.disabled = false;
   });
 
   document.getElementById("logout-btn").addEventListener("click", () => {

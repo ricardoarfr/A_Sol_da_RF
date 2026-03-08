@@ -17,7 +17,14 @@ async function apiFetch(path, options = {}) {
   });
 
   if (res.status === 401) throw new Error("Token inválido. Verifique e tente novamente.");
-  if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+  if (!res.ok) {
+    let detail = `Erro ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {}
+    throw new Error(detail);
+  }
 
   return res.json();
 }

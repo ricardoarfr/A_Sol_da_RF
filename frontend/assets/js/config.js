@@ -384,14 +384,21 @@ function showApp() {
 
 async function tryLogin(token) {
   sessionStorage.setItem("admin_token", token);
+  const hint = document.getElementById("login-error");
+  hint.style.display = "none";
   try {
     await apiFetch("/admin/ai-models");
     showApp();
   } catch (e) {
-    sessionStorage.removeItem("admin_token");
-    const hint = document.getElementById("login-error");
-    hint.textContent = "Token inválido.";
-    hint.style.display = "block";
+    // Só bloqueia o login se o token foi rejeitado (401)
+    if (e.message.startsWith("Token inválido")) {
+      sessionStorage.removeItem("admin_token");
+      hint.textContent = "Token inválido.";
+      hint.style.display = "block";
+    } else {
+      // Erro de servidor (ex: banco indisponível) — entra mesmo assim
+      showApp();
+    }
   }
 }
 

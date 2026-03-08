@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
-from app.services import ai_config, phone_auth, ai, systems as systems_svc
+from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc
 
 logger = logging.getLogger(__name__)
 
@@ -197,4 +197,53 @@ async def update_system(system_id: str, payload: SystemPayload) -> dict:
 @router.delete("/systems/{system_id}", dependencies=[Depends(_require_admin)])
 async def delete_system(system_id: str) -> dict:
     await systems_svc.delete_system(system_id)
+    return {"status": "ok"}
+
+
+# --- Auth Methods ---
+
+class AuthMethodPayload(BaseModel):
+    system_id: str | None = None
+    name: str
+    type: str
+    config: str = "{}"
+    description: str = ""
+
+
+@router.get("/auth-methods", dependencies=[Depends(_require_admin)])
+async def list_auth_methods(system_id: str | None = None) -> dict:
+    return {"auth_methods": await auth_methods_svc.list_auth_methods(system_id)}
+
+
+@router.get("/auth-methods/{method_id}", dependencies=[Depends(_require_admin)])
+async def get_auth_method(method_id: str) -> dict:
+    method = await auth_methods_svc.get_auth_method(method_id)
+    if not method:
+        raise HTTPException(status_code=404, detail="Método de autenticação não encontrado.")
+    return method
+
+
+@router.post("/auth-methods", dependencies=[Depends(_require_admin)])
+async def create_auth_method(payload: AuthMethodPayload) -> dict:
+    try:
+        return await auth_methods_svc.create_auth_method(
+            payload.system_id, payload.name, payload.type, payload.config, payload.description,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.put("/auth-methods/{method_id}", dependencies=[Depends(_require_admin)])
+async def update_auth_method(method_id: str, payload: AuthMethodPayload) -> dict:
+    try:
+        return await auth_methods_svc.update_auth_method(
+            method_id, payload.system_id, payload.name, payload.type, payload.config, payload.description,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.delete("/auth-methods/{method_id}", dependencies=[Depends(_require_admin)])
+async def delete_auth_method(method_id: str) -> dict:
+    await auth_methods_svc.delete_auth_method(method_id)
     return {"status": "ok"}

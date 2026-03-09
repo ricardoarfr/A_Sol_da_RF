@@ -5,6 +5,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from app.config import settings
 from app.services import ai_config, phone_auth, ai, systems as systems_svc, auth_methods as auth_methods_svc, endpoints_svc, agents_svc, executor, agent_runner, importer
+from app.services.database import get_pool
 
 logger = logging.getLogger(__name__)
 

@@ -203,9 +203,10 @@ async def _call_google_no_tools(
 # Loop principal
 # ---------------------------------------------------------------------------
 
-async def run_agent(agent_id: str, user_message: str) -> str:
+async def run_agent(agent_id: str, user_message: str) -> tuple[str, list[dict]]:
     """
-    Executa um agente e retorna a resposta final em texto.
+    Executa um agente e retorna (resposta_final, tool_calls_log).
+    tool_calls_log é uma lista de dicts com {tool_name, params, result, error}.
     """
     agent, model_cfg = await _load_agent_and_model(agent_id)
     endpoints = await _load_endpoints(agent_id)
@@ -216,10 +217,12 @@ async def run_agent(agent_id: str, user_message: str) -> str:
 
     # --- Google: sem tool use nativo ---
     if provider == "google":
-        return await _call_google_no_tools(user_message, system_prompt, endpoints, model_cfg)
+        text = await _call_google_no_tools(user_message, system_prompt, endpoints, model_cfg)
+        return text, []
 
     # --- Anthropic / OpenAI compat: loop com tool use ---
     tool_map = _build_tool_map(endpoints)
+    tool_calls_log: list[dict] = []
 
     # Definições de tools no formato Anthropic
     tools = [
@@ -254,7 +257,7 @@ async def run_agent(agent_id: str, user_message: str) -> str:
             if stop_reason == "end_turn" or not tool_calls:
                 # Resposta final
                 text_parts = [b.get("text", "") for b in content_blocks if b.get("type") == "text"]
-                return "\n".join(text_parts).strip() or "(sem resposta)"
+                return "\n".join(text_parts).strip() or "(sem resposta)", tool_calls_log
 
             # Executa tools e alimenta resultados
             messages.append({"role": "assistant", "content": content_blocks})
@@ -268,10 +271,13 @@ async def run_agent(agent_id: str, user_message: str) -> str:
                     try:
                         result = await executor_svc.execute_endpoint(ep_id, params)
                         content = json.dumps(result, ensure_ascii=False, default=str)
+                        tool_calls_log.append({"tool_name": tool_name, "params": params, "result": content, "error": None})
                     except Exception as e:
                         content = f"Erro ao executar endpoint: {e}"
+                        tool_calls_log.append({"tool_name": tool_name, "params": params, "result": None, "error": str(e)})
                 else:
                     content = f"Tool desconhecida: {tool_name}"
+                    tool_calls_log.append({"tool_name": tool_name, "params": params, "result": None, "error": content})
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tc["id"],
@@ -289,7 +295,7 @@ async def run_agent(agent_id: str, user_message: str) -> str:
             tool_calls_oai = msg.get("tool_calls") or []
 
             if finish_reason == "stop" or not tool_calls_oai:
-                return msg.get("content") or "(sem resposta)"
+                return msg.get("content") or "(sem resposta)", tool_calls_log
 
             # Adiciona resposta do assistente
             messages.append({"role": "assistant", "content": msg.get("content"), "tool_calls": tool_calls_oai})
@@ -307,10 +313,13 @@ async def run_agent(agent_id: str, user_message: str) -> str:
                     try:
                         result = await executor_svc.execute_endpoint(ep_id, params)
                         content = json.dumps(result, ensure_ascii=False, default=str)
+                        tool_calls_log.append({"tool_name": tool_name, "params": params, "result": content, "error": None})
                     except Exception as e:
                         content = f"Erro ao executar endpoint: {e}"
+                        tool_calls_log.append({"tool_name": tool_name, "params": params, "result": None, "error": str(e)})
                 else:
                     content = f"Tool desconhecida: {tool_name}"
+                    tool_calls_log.append({"tool_name": tool_name, "params": params, "result": None, "error": content})
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],
@@ -318,4 +327,4 @@ async def run_agent(agent_id: str, user_message: str) -> str:
                 })
 
     logger.warning("[agent_runner] limite de iterações atingido para agente %s", agent_id)
-    return "Não consegui concluir a tarefa. Tente novamente."
+    return "Não consegui concluir a tarefa. Tente novamente.", tool_calls_log

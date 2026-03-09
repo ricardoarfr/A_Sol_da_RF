@@ -428,7 +428,7 @@ class RunAgentPayload(BaseModel):
 @router.post("/agents/{agent_id}/run", dependencies=[Depends(_require_admin)])
 async def run_agent(agent_id: str, payload: RunAgentPayload) -> dict:
     try:
-        response = await agent_runner.run_agent(agent_id, payload.message)
+        response, _ = await agent_runner.run_agent(agent_id, payload.message)
         return {"response": response}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -490,3 +490,46 @@ async def import_curl(payload: ImportCurlPayload) -> dict:
 async def preview_curl(payload: ImportCurlPayload) -> dict:
     """Parseia o CURL e retorna os campos sem persistir no banco."""
     return importer.parse_curl(payload.curl)
+
+
+# --- Logs de Conversas ---
+
+@router.get("/logs/user", dependencies=[Depends(_require_admin)])
+async def list_user_logs(page: int = 1, per_page: int = 20, pool=Depends(get_pool)) -> dict:
+    """Lista interações usuário ↔ agente (sem detalhes de tool calls)."""
+    offset = (page - 1) * per_page
+    rows = await pool.fetch(
+        """SELECT id, phone, user_message, agent_name, final_response, duration_ms, created_at
+           FROM conversation_logs
+           ORDER BY created_at DESC
+           LIMIT $1 OFFSET $2""",
+        per_page, offset,
+    )
+    total = await pool.fetchval("SELECT COUNT(*) FROM conversation_logs")
+    return {
+        "logs": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
+
+
+@router.get("/logs/agent", dependencies=[Depends(_require_admin)])
+async def list_agent_logs(page: int = 1, per_page: int = 20, pool=Depends(get_pool)) -> dict:
+    """Lista interações com detalhes de tool calls dos agentes."""
+    offset = (page - 1) * per_page
+    rows = await pool.fetch(
+        """SELECT id, phone, user_message, agent_id, agent_name, tool_calls, final_response, duration_ms, created_at
+           FROM conversation_logs
+           WHERE tool_calls != '[]'
+           ORDER BY created_at DESC
+           LIMIT $1 OFFSET $2""",
+        per_page, offset,
+    )
+    total = await pool.fetchval("SELECT COUNT(*) FROM conversation_logs WHERE tool_calls != '[]'")
+    return {
+        "logs": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }

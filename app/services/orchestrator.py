@@ -12,6 +12,8 @@ Fluxo:
 
 import json
 import logging
+import time
+import uuid
 from datetime import date
 
 import httpx
@@ -163,11 +165,34 @@ async def dispatch(phone: str, user_message: str) -> str:
             )
         logger.info("[orchestrator] agente selecionado: %s", agent_id)
 
+    agent_name = next((a["name"] for a in agents if a["id"] == agent_id), None)
+    t0 = time.monotonic()
     try:
-        return await agent_runner.run_agent(agent_id, user_message)
+        response, tool_calls_log = await agent_runner.run_agent(agent_id, user_message)
     except ValueError as e:
         logger.error("[orchestrator] agente inválido %s: %s", agent_id, e)
         return "Serviço temporariamente indisponível. Tente novamente."
     except Exception as e:
         logger.error("[orchestrator] erro ao executar agente %s: %s", agent_id, e)
         return "Não consegui processar sua solicitação agora. Tente novamente em instantes."
+
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    try:
+        pool = get_pool()
+        await pool.execute(
+            """INSERT INTO conversation_logs
+               (id, phone, user_message, agent_id, agent_name, tool_calls, final_response, duration_ms)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+            str(uuid.uuid4()),
+            phone,
+            user_message,
+            agent_id,
+            agent_name,
+            json.dumps(tool_calls_log, ensure_ascii=False, default=str),
+            response,
+            duration_ms,
+        )
+    except Exception as e:
+        logger.warning("[orchestrator] falha ao salvar log: %s", e)
+
+    return response

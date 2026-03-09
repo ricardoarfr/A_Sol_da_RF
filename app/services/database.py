@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_session (
     value TEXT NOT NULL
 );
 
--- ─── Orquestração de Agentes ──────────────────────────────────────────────
+-- ─── Orquestração de Agentes ──────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS systems (
     id          TEXT PRIMARY KEY,
@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS agent_endpoints (
     agent_id    TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     endpoint_id TEXT NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
     PRIMARY KEY (agent_id, endpoint_id)
+);
+
+CREATE TABLE IF NOT EXISTS conversation_logs (
+    id             TEXT PRIMARY KEY,
+    phone          TEXT NOT NULL,
+    user_message   TEXT NOT NULL,
+    agent_id       TEXT,
+    agent_name     TEXT,
+    tool_calls     TEXT NOT NULL DEFAULT '[]',
+    final_response TEXT NOT NULL DEFAULT '',
+    duration_ms    INTEGER NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
 

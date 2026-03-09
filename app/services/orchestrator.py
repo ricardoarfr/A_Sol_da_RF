@@ -150,6 +150,7 @@ async def dispatch(phone: str, user_message: str) -> str:
 
     if not agents:
         logger.warning("[orchestrator] nenhum agente ativo configurado")
+        await _save_log(phone, user_message, None, None, [], _FALLBACK_RESPONSE, 0)
         return _FALLBACK_RESPONSE
 
     # Com apenas 1 agente, delega direto sem chamada extra de roteamento
@@ -160,9 +161,9 @@ async def dispatch(phone: str, user_message: str) -> str:
         agent_id = await _select_agent(user_message, agents)
         if not agent_id:
             logger.info("[orchestrator] nenhum agente selecionado para: %r", user_message)
-            return (
-                "Não entendi o que você precisa. Pode reformular a pergunta?"
-            )
+            no_agent_response = "Não entendi o que você precisa. Pode reformular a pergunta?"
+            await _save_log(phone, user_message, None, None, [], no_agent_response, 0)
+            return no_agent_response
         logger.info("[orchestrator] agente selecionado: %s", agent_id)
 
     agent_name = next((a["name"] for a in agents if a["id"] == agent_id), None)
@@ -171,12 +172,21 @@ async def dispatch(phone: str, user_message: str) -> str:
         response, tool_calls_log = await agent_runner.run_agent(agent_id, user_message)
     except ValueError as e:
         logger.error("[orchestrator] agente inválido %s: %s", agent_id, e)
-        return "Serviço temporariamente indisponível. Tente novamente."
+        err_response = "Serviço temporariamente indisponível. Tente novamente."
+        await _save_log(phone, user_message, agent_id, agent_name, [], err_response, 0)
+        return err_response
     except Exception as e:
         logger.error("[orchestrator] erro ao executar agente %s: %s", agent_id, e)
-        return "Não consegui processar sua solicitação agora. Tente novamente em instantes."
+        err_response = "Não consegui processar sua solicitação agora. Tente novamente em instantes."
+        await _save_log(phone, user_message, agent_id, agent_name, [], err_response, 0)
+        return err_response
 
     duration_ms = int((time.monotonic() - t0) * 1000)
+    await _save_log(phone, user_message, agent_id, agent_name, tool_calls_log, response, duration_ms)
+    return response
+
+
+async def _save_log(phone, user_message, agent_id, agent_name, tool_calls_log, response, duration_ms):
     try:
         pool = get_pool()
         await pool.execute(
@@ -194,5 +204,3 @@ async def dispatch(phone: str, user_message: str) -> str:
         )
     except Exception as e:
         logger.warning("[orchestrator] falha ao salvar log: %s", e)
-
-    return response

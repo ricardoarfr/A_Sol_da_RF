@@ -3,7 +3,7 @@
 
 import { apiFetch } from "./api.js?v=4.0.0";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fb(id, msg, type) {
   const el = document.getElementById(id);
@@ -29,7 +29,7 @@ function esc(str) {
     .replace(/'/g, "&#39;");
 }
 
-// ─── State ───────────────────────────────────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 
 let sysState = [];
 let authState = [];
@@ -39,7 +39,7 @@ let aiModelState = [];
 let epFilterSys = "";
 let editAgentId = null;
 
-// ─── SISTEMAS ───────────────────────────────────────────────────────────────────────────
+// ─── SISTEMAS ─────────────────────────────────────────────────────────────────
 
 async function loadSystems() {
   try {
@@ -63,8 +63,8 @@ function renderSystems() {
         <span class="list-item__meta">${esc(s.base_url)}</span>
       </div>
       <div class="list-item__actions">
-        <button class="btn-icon" onclick="editSys('${s.id}')">&#9999;&#65039;</button>
-        <button class="btn-icon btn-icon--danger" onclick="delSys('${s.id}','${esc(s.name)}')">&#128465;&#65039;</button>
+        <button class="btn-icon" onclick="editSys('${s.id}')">✏️</button>
+        <button class="btn-icon btn-icon--danger" onclick="delSys('${s.id}','${esc(s.name)}')">🗑️</button>
       </div>
     </div>`).join("");
 }
@@ -124,7 +124,7 @@ window.delSys = async (id, name) => {
   } catch (e) { fb("sys-feedback", e.message, "error"); }
 };
 
-// ─── AUTH METHODS ─────────────────────────────────────────────────────────────────────────
+// ─── AUTH METHODS ─────────────────────────────────────────────────────────────
 
 const AUTH_PLACEHOLDERS = {
   bearer:              '{\n  "token": "seu-token"\n}',
@@ -158,8 +158,8 @@ function renderAuth() {
         <span class="list-item__meta">${a.type}</span>
       </div>
       <div class="list-item__actions">
-        <button class="btn-icon" onclick="editAuth('${a.id}')">&#9999;&#65039;</button>
-        <button class="btn-icon btn-icon--danger" onclick="delAuth('${a.id}','${esc(a.name)}')">&#128465;&#65039;</button>
+        <button class="btn-icon" onclick="editAuth('${a.id}')">✏️</button>
+        <button class="btn-icon btn-icon--danger" onclick="delAuth('${a.id}','${esc(a.name)}')">🗑️</button>
       </div>
     </div>`).join("");
 }
@@ -220,6 +220,7 @@ window.editAuth = id => {
   document.getElementById("edit-auth-id").value = a.id;
   document.getElementById("auth-name").value = a.name;
   document.getElementById("auth-type").value = a.type;
+  // config is a JSON string in DB — pretty-print for editing
   let cfgStr = AUTH_PLACEHOLDERS[a.type] || "{}";
   if (a.config) {
     try { cfgStr = JSON.stringify(JSON.parse(a.config), null, 2); } catch { cfgStr = a.config; }
@@ -239,7 +240,7 @@ window.delAuth = async (id, name) => {
   } catch (e) { fb("auth-feedback", e.message, "error"); }
 };
 
-// ─── ENDPOINTS ──────────────────────────────────────────────────────────────────────────────
+// ─── ENDPOINTS ────────────────────────────────────────────────────────────────
 
 async function loadEndpoints(sysId) {
   epFilterSys = sysId || "";
@@ -271,8 +272,8 @@ function renderEndpoints() {
       <div class="list-item__actions">
         <button class="btn-icon" title="Simular (dry-run)" onclick="simEp('${ep.id}')">⚡</button>
         <button class="btn-icon" title="Executar" onclick="runEp('${ep.id}')">▶</button>
-        <button class="btn-icon" title="Editar" onclick="editEp('${ep.id}')">&#9999;&#65039;</button>
-        <button class="btn-icon btn-icon--danger" title="Remover" onclick="delEp('${ep.id}','${esc(ep.name)}')">&#128465;&#65039;</button>
+        <button class="btn-icon" title="Editar" onclick="editEp('${ep.id}')">✏️</button>
+        <button class="btn-icon btn-icon--danger" title="Remover" onclick="delEp('${ep.id}','${esc(ep.name)}')">🗑️</button>
       </div>
     </div>`).join("");
 }
@@ -321,9 +322,9 @@ document.getElementById("ep-form")?.addEventListener("submit", async e => {
     name: document.getElementById("ep-name").value.trim(),
     method: document.getElementById("ep-method").value,
     path: document.getElementById("ep-path").value.trim(),
-    headers: JSON.stringify(headers),
-    query_params: JSON.stringify(qp),
-    body_template: JSON.stringify(body),
+    headers: JSON.stringify(headers),       // backend expects JSON string
+    query_params: JSON.stringify(qp),       // backend expects JSON string
+    body_template: JSON.stringify(body),    // backend expects JSON string
     auth_method_id: authId || null,
     description: document.getElementById("ep-description").value.trim() || null,
   };
@@ -362,6 +363,7 @@ window.editEp = async id => {
     document.getElementById("ep-name").value = ep.name;
     document.getElementById("ep-method").value = ep.method;
     document.getElementById("ep-path").value = ep.path;
+    // headers/query_params/body_template are JSON strings in the DB — pretty-print for editing
     const prettyJson = (s) => { try { return JSON.stringify(JSON.parse(s || "{}"), null, 2); } catch { return s || "{}"; } };
     document.getElementById("ep-headers").value = prettyJson(ep.headers);
     document.getElementById("ep-query-params").value = prettyJson(ep.query_params);
@@ -411,7 +413,7 @@ window.runEp = async id => {
   } catch (e) { alert("Erro: " + e.message); }
 };
 
-// ─── AGENTS ───────────────────────────────────────────────────────────────────────────────
+// ─── AGENTS ───────────────────────────────────────────────────────────────────
 
 async function loadAgents() {
   try {
@@ -440,8 +442,8 @@ function renderAgents() {
       </div>
       <div class="list-item__actions">
         <button class="btn-sm" onclick="testAgent('${a.id}','${esc(a.name)}')">Testar</button>
-        <button class="btn-icon" title="Editar" onclick="editAgent('${a.id}')">&#9999;&#65039;</button>
-        <button class="btn-icon btn-icon--danger" title="Remover" onclick="delAgent('${a.id}','${esc(a.name)}')">&#128465;&#65039;</button>
+        <button class="btn-icon" title="Editar" onclick="editAgent('${a.id}')">✏️</button>
+        <button class="btn-icon btn-icon--danger" title="Remover" onclick="delAgent('${a.id}','${esc(a.name)}')">🗑️</button>
       </div>
     </div>`).join("");
 }
@@ -616,7 +618,7 @@ document.getElementById("agent-test-form")?.addEventListener("submit", async e =
   }
 });
 
-// ─── IMPORT ───────────────────────────────────────────────────────────────────────────────
+// ─── IMPORT ───────────────────────────────────────────────────────────────────
 
 function populateImportSysSelects() {
   ["import-sys-postman", "import-sys-openapi", "import-sys-curl"].forEach(elId => {
@@ -730,7 +732,7 @@ document.getElementById("import-curl-form")?.addEventListener("submit", async e 
   finally { btn.disabled = false; }
 });
 
-// ─── SIMULATOR ────────────────────────────────────────────────────────────────────────────
+// ─── SIMULATOR ────────────────────────────────────────────────────────────────
 
 function populateSimSelects() {
   const epEl = document.getElementById("sim-endpoint-id");
@@ -814,7 +816,7 @@ document.getElementById("sim-raw-form")?.addEventListener("submit", async e => {
   }
 });
 
-// ─── Section loader ─────────────────────────────────────────────────────────────────────────
+// ─── Section loader ───────────────────────────────────────────────────────────
 
 async function loadPlatformSection(section) {
   if (section === "systems") {
@@ -837,12 +839,122 @@ async function loadPlatformSection(section) {
     await Promise.all([loadSystems(), loadAuth()]);
     await loadEndpoints(epFilterSys);
     populateSimSelects();
+  } else if (section === "history") {
+    await loadHistoryUsers(1);
   }
 }
 
-// ─── Navigation hook ────────────────────────────────────────────────────────────────────────
+// ─── Histórico ───────────────────────────────────────────────────────────────
 
-const PLATFORM_SECTIONS = new Set(["systems", "auth", "endpoints", "agents", "import", "simulator"]);
+let _historyUserPage = 1;
+let _historyAgentPage = 1;
+
+function _fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+async function loadHistoryUsers(page = 1) {
+  _historyUserPage = page;
+  const el = document.getElementById("history-user-list");
+  el.innerHTML = "<p class='empty-state'>Carregando...</p>";
+  try {
+    const data = await apiFetch(`/admin/logs/user?page=${page}&per_page=20`);
+    if (!data.logs || data.logs.length === 0) {
+      el.innerHTML = "<p class='empty-state'>Nenhuma interação registrada ainda.</p>";
+      document.getElementById("history-user-pagination").innerHTML = "";
+      return;
+    }
+    el.innerHTML = data.logs.map(log => `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:600;font-size:0.85rem;">${esc(log.phone)}</span>
+          <span style="font-size:0.75rem;color:var(--text-secondary);">${_fmtDate(log.created_at)} · ${log.duration_ms}ms${log.agent_name ? " · " + esc(log.agent_name) : ""}</span>
+        </div>
+        <div style="margin-bottom:6px;"><span style="font-size:0.75rem;color:var(--text-secondary);">Mensagem</span><br/><span style="white-space:pre-wrap;word-break:break-word;">${esc(log.user_message)}</span></div>
+        <div style="background:var(--bg-secondary);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-size:0.875rem;">${esc(log.final_response || "(sem resposta)")}</div>
+      </div>
+    `).join("");
+    _renderPagination("history-user-pagination", page, data.total, 20, loadHistoryUsers);
+  } catch (e) {
+    el.innerHTML = `<p class='empty-state' style='color:var(--error);'>${esc(String(e))}</p>`;
+  }
+}
+
+async function loadHistoryAgents(page = 1) {
+  _historyAgentPage = page;
+  const el = document.getElementById("history-agent-list");
+  el.innerHTML = "<p class='empty-state'>Carregando...</p>";
+  try {
+    const data = await apiFetch(`/admin/logs/agent?page=${page}&per_page=20`);
+    if (!data.logs || data.logs.length === 0) {
+      el.innerHTML = "<p class='empty-state'>Nenhuma interação com tool calls registrada.</p>";
+      document.getElementById("history-agent-pagination").innerHTML = "";
+      return;
+    }
+    el.innerHTML = data.logs.map(log => {
+      let toolCalls = [];
+      try { toolCalls = JSON.parse(log.tool_calls || "[]"); } catch (_) {}
+      const toolsHtml = toolCalls.length === 0 ? "" : `
+        <div style="margin-top:8px;">
+          <span style="font-size:0.75rem;color:var(--text-secondary);">Tool calls (${toolCalls.length})</span>
+          ${toolCalls.map((tc, i) => `
+            <div style="background:var(--bg-secondary);border-radius:6px;padding:8px 10px;margin-top:4px;font-size:0.8rem;">
+              <div style="font-weight:600;margin-bottom:2px;">${i + 1}. ${esc(tc.tool_name || "")}</div>
+              <div style="color:var(--text-secondary);margin-bottom:2px;">Params: <code style="font-size:0.75rem;">${esc(JSON.stringify(tc.params || {}))}</code></div>
+              ${tc.error ? `<div style="color:var(--error);">Erro: ${esc(tc.error)}</div>` : `<div style="max-height:80px;overflow:auto;word-break:break-all;color:var(--text-secondary);">${esc((tc.result || "").substring(0, 300))}${(tc.result || "").length > 300 ? "…" : ""}</div>`}
+            </div>
+          `).join("")}
+        </div>`;
+      return `
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;font-size:0.85rem;">${esc(log.phone)}</span>
+            <span style="font-size:0.75rem;color:var(--text-secondary);">${_fmtDate(log.created_at)} · ${log.duration_ms}ms · ${esc(log.agent_name || "")}</span>
+          </div>
+          <div style="margin-bottom:4px;font-size:0.875rem;">${esc(log.user_message)}</div>
+          ${toolsHtml}
+          <div style="background:var(--bg-secondary);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-size:0.875rem;margin-top:8px;">${esc(log.final_response || "(sem resposta)")}</div>
+        </div>`;
+    }).join("");
+    _renderPagination("history-agent-pagination", page, data.total, 20, loadHistoryAgents);
+  } catch (e) {
+    el.innerHTML = `<p class='empty-state' style='color:var(--error);'>${esc(String(e))}</p>`;
+  }
+}
+
+function _renderPagination(containerId, currentPage, total, perPage, loadFn) {
+  const container = document.getElementById(containerId);
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) { container.innerHTML = ""; return; }
+  container.innerHTML = `
+    <button class="btn btn-ghost" style="padding:4px 10px;" ${currentPage <= 1 ? "disabled" : ""} data-page="${currentPage - 1}">‹ Anterior</button>
+    <span style="font-size:0.85rem;color:var(--text-secondary);">Página ${currentPage} de ${totalPages} (${total} registros)</span>
+    <button class="btn btn-ghost" style="padding:4px 10px;" ${currentPage >= totalPages ? "disabled" : ""} data-page="${currentPage + 1}">Próxima ›</button>
+  `;
+  container.querySelectorAll("button[data-page]").forEach(btn => {
+    btn.addEventListener("click", () => loadFn(Number(btn.dataset.page)));
+  });
+}
+
+// Tabs do histórico
+document.querySelectorAll('.tab-btn[data-group="history"]').forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn[data-group="history"]').forEach(b => b.classList.remove("tab-btn--active"));
+    btn.classList.add("tab-btn--active");
+    document.querySelectorAll('.tab-pane[data-group="history"]').forEach(p => {
+      p.style.display = p.dataset.tab === tab ? "" : "none";
+    });
+    if (tab === "users") await loadHistoryUsers(1);
+    else if (tab === "agents") await loadHistoryAgents(1);
+  });
+});
+
+// ─── Navigation hook ─────────────────────────────────────────────────────────
+
+const PLATFORM_SECTIONS = new Set(["systems", "auth", "endpoints", "agents", "import", "simulator", "history"]);
 
 document.querySelectorAll(".nav-item").forEach(btn => {
   btn.addEventListener("click", () => {
